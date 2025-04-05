@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#FDF0D5"> <!-- Placeholder warm color -->
+    <title>Book Tracker</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <!-- Add to home screen for Safari on iOS -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="BookTrack">
+    <!-- Link to icons (will be defined in manifest.json) -->
+    <link rel="apple-touch-icon" href="images/icons/icon-152x152.png">
+    <!-- Add more icon sizes if needed -->
+</head>
+<body>
+    <header id="app-header">
+        <h1>My Books</h1>
+        <!-- Add Book Button Placeholder -->
+        <button id="add-book-btn" aria-label="Add new book">+</button>
+    </header>
+
+    <nav id="tab-navigation">
+        <!-- Tab Buttons Placeholder -->
+        <button class="tab-button active" data-status="reading">In Progress</button>
+        <button class="tab-button" data-status="read">Read</button>
+        <button class="tab-button" data-status="to-read">To Read</button>
+        <button class="tab-button" data-status="insights">Insights</button>
+        <button class="tab-button" data-status="recommendations">Recommendations</button>
+    </nav>
+
+    <div id="search-filter-bar">
+        <input type="search" id="search-input" placeholder="Search by title or author...">
+        <!-- Genre filter UI will go here later -->
+    </div>
+
+    <main id="main-content">
+        <!-- Book List Container Placeholder -->
+        <div id="book-list-container">
+            <!-- Book items will be dynamically added here -->
+        </div>
+    </main>
+
+    <!-- Add/Edit Book Modal Placeholder (Initially Hidden) -->
+    <div id="book-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2>Add/Edit Book</h2>
+            <form id="book-form">
+                <input type="hidden" id="book-id">
+                <div>
+                    <label for="title">Title:</label>
+                    <input type="text" id="title" name="title" required>
+                </div>
+                <div>
+                    <label for="author">Author:</label>
+                    <input type="text" id="author" name="author" required>
+                </div>
+                <div>
+                    <label for="genres">Genre(s):</label>
+                    <input type="text" id="genres" name="genres" placeholder="Comma-separated">
+                </div>
+                <div>
+                    <label for="status">Status:</label>
+                    <select id="status" name="status">
+                        <option value="reading">In Progress</option>
+                        <option value="read">Read</option>
+                        <option value="to-read">To Read</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="start-date">Start Date:</label>
+                    <input type="date" id="start-date" name="startDate">
+                </div>
+                <div>
+                    <label for="end-date">End Date:</label>
+                    <input type="date" id="end-date" name="endDate">
+                </div>
+                <div>
+                    <label for="rating">Rating (1-5):</label>
+                    <input type="number" id="rating" name="rating" min="1" max="5">
+                </div>
+                <div>
+                    <label for="notes">Notes:</label>
+                    <textarea id="notes" name="notes"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="submit">Save Book</button>
+                    <button type="button" class="cancel-btn">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Book Detail Modal Placeholder (Initially Hidden) -->
+    <div id="book-detail-modal" class="modal" style="display: none;">
+         <div class="modal-content">
+             <span class="close-btn">&times;</span>
+             <h2 id="detail-title">Book Title</h2>
+             <p id="detail-author">Author Name</p>
+             <img id="detail-cover" src="" alt="Book Cover" style="max-width: 100px; display: none;">
+             <p><strong>Status:</strong> <span id="detail-status"></span></p>
+             <p><strong>Genre(s):</strong> <span id="detail-genres"></span></p>
+             <p><strong>Started:</strong> <span id="detail-start-date"></span></p>
+             <p><strong>Finished:</strong> <span id="detail-end-date"></span></p>
+             <p><strong>Rating:</strong> <span id="detail-rating"></span></p>
+             <p><strong>Pages:</strong> <span id="detail-page-count"></span></p>
+             <p><strong>Description:</strong></p>
+             <p id="detail-description"></p>
+             <p><strong>Notes:</strong></p>
+             <p id="detail-notes"></p>
+             <div class="detail-actions">
+                 <button class="status-change-btn" data-new-status="reading">Start Reading</button>
+                 <button class="status-change-btn" data-new-status="read">Mark as Read</button>
+                 <button class="status-change-btn" data-new-status="to-read">Move to To-Read</button>
+                 <hr style="margin: 0.5rem 0; border: none; border-top: 1px solid var(--border-color);">
+                 <button id="edit-book-btn">Edit Details</button>
+                 <button id="delete-book-btn">Delete Book</button>
+             </div>
+         </div>
+     </div>
+
+    <script src="app.js" type="module"></script>
+</body>
+</html>
