@@ -16,9 +16,77 @@ const bookDetailModal = document.getElementById('book-detail-modal');
 let currentView = 'reading'; // Default view
 let db; // To hold the IndexedDB database instance
 
+// --- Constants ---
+const GEMINI_API_KEY_STORAGE_KEY = 'geminiApiKey';
+const PROVIDED_API_KEY = 'AIzaSyCTYlvj65ZbLkRYnqlkY9t9mGCtD5RDiEo'; // User provided key
+
+// --- API Key Management ---
+function saveApiKey(key) {
+    try {
+        localStorage.setItem(GEMINI_API_KEY_STORAGE_KEY, key);
+        console.log("API Key saved to localStorage.");
+        return true;
+    } catch (e) {
+        console.error("Error saving API key to localStorage:", e);
+        alert("Could not save API key. Recommendations might not work.");
+        return false;
+    }
+}
+
+function getApiKey() {
+    let key = localStorage.getItem(GEMINI_API_KEY_STORAGE_KEY);
+    if (!key) {
+        console.log("API Key not found in localStorage, using provided key as fallback.");
+        // In a real app, prompt the user here. For now, use the provided one.
+        if (saveApiKey(PROVIDED_API_KEY)) {
+             key = PROVIDED_API_KEY;
+        } else {
+            // Alert shown in saveApiKey if it fails
+            return null;
+        }
+    }
+    return key;
+}
+
+// --- Sample Data ---
+const sampleBooks = [
+    { id: generateUUID(), title: "The Hobbit", author: "J.R.R. Tolkien", genres: ["fantasy", "adventure"], status: "read", rating: 5, startDate: "2024-01-10", endDate: "2024-01-25", dateAdded: new Date().toISOString(), isRecommendation: false },
+    { id: generateUUID(), title: "Dune", author: "Frank Herbert", genres: ["science fiction", "epic"], status: "reading", rating: null, startDate: "2024-03-15", endDate: null, dateAdded: new Date().toISOString(), isRecommendation: false },
+    { id: generateUUID(), title: "Pride and Prejudice", author: "Jane Austen", genres: ["romance", "classic"], status: "read", rating: 4, startDate: "2024-02-01", endDate: "2024-02-15", dateAdded: new Date().toISOString(), isRecommendation: false },
+    { id: generateUUID(), title: "1984", author: "George Orwell", genres: ["dystopian", "science fiction"], status: "to-read", rating: null, startDate: null, endDate: null, dateAdded: new Date().toISOString(), isRecommendation: false },
+    { id: generateUUID(), title: "Foundation", author: "Isaac Asimov", genres: ["science fiction", "classic"], status: "to-read", rating: null, startDate: null, endDate: null, dateAdded: new Date().toISOString(), isRecommendation: false },
+    { id: generateUUID(), title: "To Kill a Mockingbird", author: "Harper Lee", genres: ["classic", "fiction"], status: "read", rating: 5, startDate: "2023-11-05", endDate: "2023-11-20", dateAdded: new Date().toISOString(), isRecommendation: false },
+    { id: generateUUID(), title: "The Hitchhiker's Guide to the Galaxy", author: "Douglas Adams", genres: ["science fiction", "comedy", "adventure"], status: "reading", rating: null, startDate: "2024-04-01", endDate: null, dateAdded: new Date().toISOString(), isRecommendation: false },
+    { id: generateUUID(), title: "Neuromancer", author: "William Gibson", genres: ["science fiction", "cyberpunk"], status: "to-read", rating: null, startDate: null, endDate: null, dateAdded: new Date().toISOString(), isRecommendation: false },
+    { id: generateUUID(), title: "Emma", author: "Jane Austen", genres: ["romance", "classic"], status: "to-read", rating: null, startDate: null, endDate: null, dateAdded: new Date().toISOString(), isRecommendation: false },
+];
+
+/**
+ * Populates the database with sample data if it's empty.
+ */
+async function populateDummyData() {
+    try {
+        const allBooks = await getAllBooks();
+        if (allBooks.length === 0) {
+            console.log("Database is empty, populating with dummy data...");
+            // Use Promise.all to add all books concurrently
+            await Promise.all(sampleBooks.map(book => addBook(book)));
+            console.log("Dummy data populated successfully.");
+        } else {
+            console.log("Database already contains data, skipping dummy data population.");
+        }
+    } catch (error) {
+        console.error("Error checking or populating dummy data:", error);
+    }
+}
+
+
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', async () => { // Make async to await initDB
     console.log('DOM fully loaded and parsed');
+
+    // Check/Get API Key early
+    getApiKey(); // Ensure key is checked/saved on load
 
     // 3. Add event listeners (can be done before DB init)
     setupEventListeners();
@@ -27,10 +95,14 @@ document.addEventListener('DOMContentLoaded', async () => { // Make async to awa
     try {
         db = await initDB(); // Initialize and store DB instance
         console.log('DB connection established in app.js');
-        // 2. Set up initial UI (Load books for the default view)
-        switchView(currentView); // Load initial view data now that DB is ready
+
+        // 2. Populate with dummy data if DB is empty
+        await populateDummyData();
+
+        // 3. Set up initial UI (Load books for the default view)
+        switchView(currentView); // Load initial view data now that DB is ready (and possibly populated)
     } catch (error) {
-        console.error("Failed to initialize DB:", error);
+        console.error("Failed to initialize DB or populate data:", error);
         // Display an error message to the user in the UI
         bookListContainer.innerHTML = `<p style="color: red;">Error: Could not connect to the database. App features may be limited.</p>`;
     }
@@ -178,8 +250,6 @@ function openDetailModal(book) {
     } else {
         coverImg.style.display = 'none';
         coverImg.src = ''; // Clear previous image
-        coverImg.style.display = 'none';
-        coverImg.src = ''; // Clear previous image
     }
 
     // --- Fetch missing details from API ---
@@ -227,7 +297,6 @@ function openDetailModal(book) {
     }
     // --- End API Fetch ---
 
-    // Store book ID on buttons for edit/delete actions
     // Store book ID and current status on the modal for easier access and CSS targeting
     bookDetailModal.dataset.bookId = book.id;
     bookDetailModal.dataset.currentStatus = book.status;
@@ -297,11 +366,6 @@ async function handleBookItemClick(event) { // Make async
     if (bookItem) {
         const bookId = bookItem.dataset.bookId;
         console.log(`Clicked book item with ID: ${bookId}`);
-        // TODO: Fetch the full book details from IndexedDB using getBook(bookId)
-        // Then open the detail modal:
-        // getBook(bookId).then(book => {
-        //     if (book) openDetailModal(book);
-        // });
 
         // Fetch the full book details from IndexedDB using getBook(bookId)
         try {
@@ -339,11 +403,6 @@ async function handleDetailModalActions(event) {
 async function handleEditBook(bookId) {
     console.log(`Edit button clicked for book ID: ${bookId}`);
     closeModals(); // Close detail modal first
-    // TODO: Fetch book data using getBook(bookId)
-    // Then open the edit modal with populated data
-    // getBook(bookId).then(book => {
-    //     if (book) openBookModal(book);
-    // });
     // Fetch book data using getBook(bookId)
     try {
         const book = await getBook(bookId);
@@ -360,15 +419,7 @@ async function handleEditBook(bookId) {
 async function handleDeleteBook(bookId) {
     console.log(`Delete button clicked for book ID: ${bookId}`);
     if (confirm('Are you sure you want to delete this book?')) {
-        // TODO: Call IndexedDB deleteBook(bookId) function
-        // deleteBook(bookId).then(() => {
-        //    console.log(`Book ${bookId} deleted`);
-        //    closeModals();
-        //    loadAndRenderBooks(currentView); // Refresh list
-        // });
-        console.log(`Simulating delete for book ${bookId}`);
-        closeModals();
-         // Call IndexedDB deleteBook(bookId) function
+        // Call IndexedDB deleteBook(bookId) function
         try {
             await deleteBook(bookId);
             console.log(`Book ${bookId} deleted`);
@@ -544,7 +595,7 @@ async function loadAndRenderBooks(status) {
     }
     bookListContainer.innerHTML = '<p>Loading books...</p>'; // Show loading indicator
     try {
-        // Use the imported DB function (still placeholder in db.js for now)
+        // Use the imported DB function
         const books = await getBooksByStatus(status);
         console.log(`Books loaded for status ${status}:`, books);
 
@@ -697,114 +748,365 @@ async function analyzeReadingHistory() {
  * @returns {Promise<Array<object>>} A promise resolving with an array of recommended book objects.
  */
 async function generateSimpleRecommendations(topAuthors, topGenres) {
-    if (!db) return [];
+    // This function is no longer the primary recommendation method
+    // but kept for potential future use or reference.
+    console.log("generateSimpleRecommendations called (currently unused for main AI recs)");
+    return []; // Return empty as AI recs are handled separately now
+}
 
-    const recommendations = [];
-    const recommendedIds = new Set(); // Keep track of added IDs
+
+/**
+ * Fetches book recommendations from the Google Gemini API based on genre or a specific book.
+ * @param {string | null} genre - The selected genre (or null if book-based).
+ * @param {object | null} basedOnBook - The specific book to base recommendations on (or null if genre-based).
+ * @param {Array<object>} readBooks - An array of all books the user has read.
+ * @param {string} apiKey - The Google Gemini API key.
+ * @returns {Promise<Array<{title: string, author: string, description: string, coverUrl?: string}>|null>} A promise resolving with recommendations or null.
+ */
+async function fetchGeminiRecommendations(genre, basedOnBook, readBooks, apiKey) {
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-001:generateContent?key=${apiKey}`; // Updated model name
+
+    // --- Construct the prompt ---
+    let prompt = `Based on the following books I have read:\n`;
+    if (readBooks.length > 0) {
+        readBooks.forEach(book => {
+            prompt += `- "${book.title}" by ${book.author}\n`;
+        });
+    } else {
+        prompt += "- (No specific books read yet)\n";
+    }
+
+    if (basedOnBook) {
+        prompt += `\nPlease recommend 5 books similar to "${basedOnBook.title}" by ${basedOnBook.author}. Avoid recommending the books I've already listed.`;
+    } else if (genre) {
+        prompt += `\nPlease recommend 5 books in the "${genre}" genre that I might like. Avoid recommending the books I've already listed.`;
+    } else {
+        console.error("Must provide either genre or basedOnBook for recommendations.");
+        return null; // Need either genre or book
+    }
+
+    prompt += `\nFor each recommendation, provide the title, author, and a very short (1-2 sentence) description. If possible, also provide a cover image URL (key: "coverUrl") from a reliable source like Open Library Covers (e.g., https://covers.openlibrary.org/b/id/...). If no cover URL is easily found, omit the coverUrl key or set it to null.`;
+    prompt += `\nPlease format the response as a JSON array of objects, where each object has keys "title", "author", "description", and optionally "coverUrl". Example: [{"title": "Book Title", "author": "Author Name", "description": "Short description.", "coverUrl": "https://..."}]`;
+
+    console.log("Sending prompt to Gemini:", prompt);
 
     try {
-        const toReadBooks = await getBooksByStatus('to-read');
-        const topAuthorNames = topAuthors.map(([name]) => name); // Get just the names
-
-        // Suggest books from 'to-read' list by top authors
-        for (const book of toReadBooks) {
-            if (book.author && topAuthorNames.includes(book.author.toLowerCase().trim())) {
-                if (!recommendedIds.has(book.id)) {
-                     // Mark as recommendation (optional, could also be done in rendering)
-                    // book.isRecommendation = true; // Modify copy if needed, or handle in rendering
-                    recommendations.push(book);
-                    recommendedIds.add(book.id);
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                    temperature: 0.7,
                 }
-            }
-            if (recommendations.length >= 5) break; // Limit suggestions for now
+            }),
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.text();
+            console.error("Gemini API Error Response:", errorBody);
+            throw new Error(`Gemini API request failed with status ${response.status}: ${response.statusText}`);
         }
 
-        console.log("Generated simple recommendations:", recommendations);
+        const data = await response.json();
+        console.log("Gemini API Raw Response:", data);
 
-        // TODO: (Future Enhancement) If fewer than N recommendations,
-        // fetch popular books for top genres via API (e.g., OpenLibrary Subjects API)
-        // Example: `https://openlibrary.org/subjects/${topGenres[0][0]}.json?limit=5`
-        // Need to handle potential duplicates and fetch details.
+        // --- Parse the response ---
+        if (data.candidates && data.candidates.length > 0 &&
+            data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts.length > 0)
+        {
+            let jsonString = data.candidates[0].content.parts[0].text;
+            jsonString = jsonString.replace(/^```json\s*/, '').replace(/\s*```$/, '');
 
-        return recommendations;
+            try {
+                const recommendations = JSON.parse(jsonString);
+                // Basic validation (description is required, coverUrl is optional)
+                if (Array.isArray(recommendations) && recommendations.every(r => r.title && r.author && r.description)) {
+                    console.log("Parsed Gemini Recommendations:", recommendations);
+                    return recommendations.slice(0, 5); // Ensure only 5 are returned
+                } else {
+                    console.error("Gemini response was not the expected JSON array format:", recommendations);
+                    throw new Error("Received invalid data format from AI.");
+                }
+            } catch (parseError) {
+                console.error("Error parsing Gemini JSON response:", parseError, "Raw text:", jsonString);
+                throw new Error("Could not understand the AI's response format.");
+            }
+        } else {
+            console.error("Unexpected Gemini response structure:", data);
+            throw new Error("Received an unexpected response structure from the AI.");
+        }
 
     } catch (error) {
-        console.error("Error generating simple recommendations:", error);
-        return [];
+        console.error('Error fetching Gemini recommendations:', error);
+        if (error.message.includes("400")) {
+             alert("Error: Invalid request sent to AI (check API key or prompt).");
+        } else if (error.message.includes("403")) {
+             alert("Error: Permission denied (check API key).");
+        } else if (error.message.includes("429")) {
+             alert("Error: Rate limit exceeded. Please try again later.");
+        } else {
+             alert(`Error fetching recommendations: ${error.message}`);
+        }
+        return null;
     }
 }
 
-// async function fetchApiRecommendations(recentBooks) { ... } // Option B - not implementing now
 
 /**
- * Fetches and renders book recommendations in the book list container.
+ * Sets up the UI for the recommendations tab and handles fetching/displaying AI recommendations.
  */
 async function renderRecommendations() {
     if (!db) {
         bookListContainer.innerHTML = `<p>Database connection pending...</p>`;
         return;
     }
-    bookListContainer.innerHTML = `<p>Generating recommendations...</p>`;
+    bookListContainer.innerHTML = ''; // Clear previous content
 
+    // --- Create UI Elements ---
+    const uiContainer = document.createElement('div');
+    uiContainer.id = 'recommendation-ui';
+
+    // --- Genre Section ---
+    const genreSection = document.createElement('div');
+    genreSection.style.marginBottom = '1rem';
+    genreSection.style.paddingBottom = '1rem';
+    genreSection.style.borderBottom = '1px solid #eee';
+
+    const genreLabel = document.createElement('label');
+    genreLabel.htmlFor = 'rec-genre-select';
+    genreLabel.textContent = 'Get recommendations based on genre: ';
+    genreLabel.style.marginRight = '0.5rem';
+
+    const genreSelect = document.createElement('select');
+    genreSelect.id = 'rec-genre-select';
+    genreSelect.style.marginRight = '0.5rem';
+    genreSelect.style.padding = '0.3rem';
+
+    const getGenreRecsButton = document.createElement('button'); // Renamed variable
+    getGenreRecsButton.id = 'get-genre-recs-btn'; // New ID
+    getGenreRecsButton.textContent = 'Get Genre Recommendations';
+    getGenreRecsButton.style.padding = '0.3rem 0.6rem';
+
+    genreSection.appendChild(genreLabel);
+    genreSection.appendChild(genreSelect);
+    genreSection.appendChild(getGenreRecsButton); // Use renamed variable
+
+    // --- Book Section ---
+    const bookSection = document.createElement('div');
+    bookSection.style.marginBottom = '1rem';
+
+    const bookLabel = document.createElement('label');
+    bookLabel.htmlFor = 'rec-book-select';
+    bookLabel.textContent = 'Or get recommendations based on a book you\'ve read: ';
+    bookLabel.style.marginRight = '0.5rem';
+
+    const bookSelect = document.createElement('select');
+    bookSelect.id = 'rec-book-select'; // New ID
+    bookSelect.style.marginRight = '0.5rem';
+    bookSelect.style.padding = '0.3rem';
+
+    const getBookRecsButton = document.createElement('button');
+    getBookRecsButton.id = 'get-book-recs-btn'; // New ID
+    getBookRecsButton.textContent = 'Get Similar Books';
+    getBookRecsButton.style.padding = '0.3rem 0.6rem';
+
+    bookSection.appendChild(bookLabel);
+    bookSection.appendChild(bookSelect);
+    bookSection.appendChild(getBookRecsButton);
+
+    // --- Results Area ---
+    const resultsContainer = document.createElement('div');
+    resultsContainer.id = 'ai-recommendation-results';
+    resultsContainer.style.marginTop = '1rem';
+
+    // Append sections to main container
+    uiContainer.appendChild(genreSection);
+    uiContainer.appendChild(bookSection);
+
+    bookListContainer.appendChild(uiContainer);
+    bookListContainer.appendChild(resultsContainer);
+
+
+    // --- Populate Dropdowns ---
     try {
-        const { topGenres, topAuthors } = await analyzeReadingHistory();
+        const readBooks = await getBooksByStatus('read'); // Fetch once for both dropdowns
 
-        if (topAuthors.length === 0 && topGenres.length === 0) {
-             bookListContainer.innerHTML = `<p>Read some books to get recommendations!</p>`;
-             return;
-        }
-
-        const recommendedBooks = await generateSimpleRecommendations(topAuthors, topGenres);
-
-        bookListContainer.innerHTML = ''; // Clear loading message
-
-        if (recommendedBooks.length === 0) {
-            bookListContainer.innerHTML = `<p>No recommendations found based on your 'To Read' list and top authors. Read more or add books!</p>`;
-            // TODO: Add API call here later for genre-based suggestions
-            return;
-        }
-
-        const recommendationHeader = document.createElement('h2');
-        recommendationHeader.textContent = "Recommendations For You";
-        recommendationHeader.style.marginBottom = '1rem'; // Add some spacing
-        recommendationHeader.style.width = '100%'; // Span full width if grid wraps
-        bookListContainer.appendChild(recommendationHeader);
-
-
-        recommendedBooks.forEach(book => {
-            // We can reuse createBookItemElement, but maybe add a recommendation flag/style
-            const bookElement = createBookItemElement(book);
-            // Add a visual indicator that it's a recommendation
-            const recIndicator = document.createElement('span');
-            recIndicator.textContent = 'Recommended';
-            recIndicator.style.cssText = `
-                position: absolute;
-                bottom: 5px;
-                left: 10px;
-                font-size: 0.7rem;
-                background-color: var(--primary-accent);
-                color: white;
-                padding: 1px 4px;
-                border-radius: 3px;
-                opacity: 0.8;
-            `;
-            bookElement.style.position = 'relative'; // Ensure parent is relative for absolute positioning
-            bookElement.appendChild(recIndicator);
-
-            // TODO: Add "Dismiss" button logic later if needed
-            // TODO: Add "Add to My List" button logic (maybe just change status via detail modal?)
-
-            bookListContainer.appendChild(bookElement);
+        // Populate Genre Dropdown
+        const uniqueGenres = new Set();
+        readBooks.forEach(book => {
+            if (book.genres && Array.isArray(book.genres)) {
+                book.genres.forEach(g => uniqueGenres.add(g.trim().toLowerCase()));
+            }
         });
 
+        if (uniqueGenres.size === 0) {
+            genreSelect.innerHTML = '<option value="">Read books with genres first</option>';
+            getGenreRecsButton.disabled = true;
+        } else {
+            genreSelect.innerHTML = '<option value="">-- Select Genre --</option>';
+            uniqueGenres.forEach(genre => {
+                const option = document.createElement('option');
+                option.value = genre;
+                // Capitalize first letter for display
+                option.textContent = genre.charAt(0).toUpperCase() + genre.slice(1);
+                genreSelect.appendChild(option);
+            });
+            getGenreRecsButton.disabled = false;
+        }
+
+        // Populate Book Dropdown
+        if (readBooks.length === 0) {
+             bookSelect.innerHTML = '<option value="">Read books first</option>';
+             getBookRecsButton.disabled = true;
+        } else {
+            bookSelect.innerHTML = '<option value="">-- Select Book --</option>';
+            readBooks.forEach(book => {
+                const option = document.createElement('option');
+                option.value = book.id; // Store book ID as value
+                option.textContent = `${book.title} by ${book.author}`;
+                bookSelect.appendChild(option);
+            });
+             getBookRecsButton.disabled = false;
+        }
+
     } catch (error) {
-        console.error("Error rendering recommendations:", error);
-        bookListContainer.innerHTML = `<p>Could not load recommendations.</p>`;
+        console.error("Error populating dropdowns:", error);
+        genreSelect.innerHTML = '<option value="">Error loading genres</option>';
+        getGenreRecsButton.disabled = true;
+        bookSelect.innerHTML = '<option value="">Error loading books</option>';
+        getBookRecsButton.disabled = true;
+    }
+
+    // --- Add Button Event Listeners ---
+    getGenreRecsButton.addEventListener('click', async () => { // Use renamed variable
+        const selectedGenre = genreSelect.value;
+        if (!selectedGenre) {
+            alert("Please select a genre.");
+            return;
+        }
+        triggerAiRecommendation(selectedGenre, null, resultsContainer, getGenreRecsButton, getBookRecsButton); // Pass null for book
+    });
+
+    getBookRecsButton.addEventListener('click', async () => { // Listener for new button
+        const selectedBookId = bookSelect.value;
+        if (!selectedBookId) {
+            alert("Please select a book.");
+            return;
+        }
+        // Find the selected book object (needed for the prompt)
+        try {
+            const selectedBook = await getBook(selectedBookId);
+            if (!selectedBook) {
+                 alert("Error: Could not find the selected book details.");
+                 return;
+            }
+             triggerAiRecommendation(null, selectedBook, resultsContainer, getGenreRecsButton, getBookRecsButton); // Pass null for genre
+        } catch (error) {
+             console.error("Error fetching selected book for recommendation:", error);
+             alert("Error fetching book details.");
+        }
+    });
+}
+
+/**
+ * Helper function to trigger Gemini fetch and display results.
+ * @param {string|null} genre - The selected genre or null.
+ * @param {object|null} book - The selected book or null.
+ * @param {HTMLElement} resultsContainer - The container to display results.
+ * @param {HTMLButtonElement} button1 - First button to disable/enable.
+ * @param {HTMLButtonElement} button2 - Second button to disable/enable.
+ */
+async function triggerAiRecommendation(genre, book, resultsContainer, button1, button2) {
+    const apiKey = getApiKey();
+    if (!apiKey) {
+        alert("API Key not found. Cannot fetch recommendations.");
+        return;
+    }
+
+    resultsContainer.innerHTML = '<p>Fetching AI recommendations...</p>';
+    button1.disabled = true;
+    button2.disabled = true;
+
+    try {
+        const readBooks = await getBooksByStatus('read'); // Need read books for context
+        // Pass either genre OR book to the fetch function
+        const recommendations = await fetchGeminiRecommendations(genre, book, readBooks, apiKey);
+
+        resultsContainer.innerHTML = ''; // Clear loading message
+
+        if (!recommendations || recommendations.length === 0) {
+            resultsContainer.innerHTML = '<p>Could not get AI recommendations. Try a different selection or check the console.</p>';
+        } else {
+            const recommendationHeader = document.createElement('h3');
+            recommendationHeader.textContent = book
+                ? `AI Recommendations based on "${book.title}":`
+                : `AI Recommendations for ${genre}:`;
+            recommendationHeader.style.marginBottom = '0.5rem';
+            resultsContainer.appendChild(recommendationHeader);
+
+            recommendations.forEach(rec => {
+                const recElement = document.createElement('div');
+                recElement.classList.add('ai-recommendation-item');
+                // Add basic styling here or use CSS classes later
+                recElement.style.cssText = `
+                    display: flex;
+                    align-items: flex-start;
+                    border: 1px solid #eee;
+                    padding: 0.8rem;
+                    margin-bottom: 0.8rem;
+                    border-radius: 4px;
+                    gap: 1rem; /* Space between image and text */
+                `;
+
+                const imgElement = document.createElement('img');
+                imgElement.alt = `Cover for ${rec.title}`;
+                imgElement.style.width = '60px'; // Adjust size as needed
+                imgElement.style.height = 'auto';
+                imgElement.style.flexShrink = '0'; // Prevent image from shrinking
+
+                const textElement = document.createElement('div');
+                textElement.innerHTML = `
+                    <strong>${rec.title}</strong> by ${rec.author}<br>
+                    <p style="font-size: 0.9em; margin-top: 0.3rem;">${rec.description}</p>
+                    <!-- TODO: Add button to add this to 'to-read' list -->
+                `;
+
+                recElement.appendChild(imgElement);
+                recElement.appendChild(textElement);
+                resultsContainer.appendChild(recElement);
+
+                // Set image source (handle potential null/undefined coverUrl)
+                if (rec.coverUrl) {
+                    imgElement.src = rec.coverUrl;
+                    imgElement.onerror = () => { imgElement.style.display = 'none'; }; // Hide if image fails to load
+                } else {
+                    // Fallback: Try fetching from Open Library if Gemini didn't provide URL
+                    console.log(`Gemini didn't provide cover for ${rec.title}, trying Open Library...`);
+                    fetchBookDetails(rec.title, rec.author).then(details => {
+                        if (details && details.coverUrl) {
+                            imgElement.src = details.coverUrl;
+                        } else {
+                            imgElement.style.display = 'none'; // Hide if no cover found
+                        }
+                    }).catch(() => { imgElement.style.display = 'none'; }); // Hide on error
+                }
+            });
+        }
+
+    } catch (error) {
+        console.error("Error fetching/displaying AI recommendations:", error);
+        resultsContainer.innerHTML = '<p>An error occurred while fetching recommendations.</p>';
+    } finally {
+        button1.disabled = false; // Re-enable buttons
+        button2.disabled = false;
     }
 }
 
+
 // --- Insights Functions ---
-// (Placeholder - To be implemented in Task 3.9)
 
 /**
  * Calculates various reading statistics from the database.

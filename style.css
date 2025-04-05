@@ -315,6 +315,32 @@ body {
     display: none;
 }
 
+/* AI Recommendation Item Styling */
+.ai-recommendation-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 0.8rem;
+    margin-bottom: 0.8rem;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    background-color: #f9f9f9; /* Slightly different background */
+}
+
+.ai-recommendation-item img {
+    width: 60px; /* Fixed width */
+    height: auto;
+    flex-shrink: 0; /* Prevent shrinking */
+    border: 1px solid var(--border-color);
+}
+
+.ai-recommendation-item p {
+    font-size: 0.9em;
+    margin-top: 0.3rem;
+    color: #555;
+}
+
+
 /* Responsiveness Placeholder */
 @media (max-width: 600px) {
     #app-header h1 {
