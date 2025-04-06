@@ -42,22 +42,45 @@ body {
     color: var(--text-color);
 }
 
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem; /* Space between buttons */
+}
+
+#settings-btn,
 #add-book-btn {
-    background-color: var(--primary-accent);
-    color: white;
-    border: none;
+    background-color: transparent; /* Make settings button transparent */
+    color: var(--primary-accent); /* Use accent color for icon */
+    border: 1px solid var(--border-color); /* Add a subtle border */
     border-radius: 8px; /* Slightly squared corners */
     width: 36px; /* Adjusted size */
     height: 36px;
-    font-size: 1.4rem;
+    font-size: 1.4rem; /* Keep size for icon */
     cursor: pointer;
-    line-height: 36px; /* Center the '+' */
+    line-height: 34px; /* Adjust line-height for border */
     text-align: center;
-    transition: background-color 0.2s ease;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+/* Specific style for add button */
+#add-book-btn {
+    background-color: var(--primary-accent);
+    color: white;
+    border-color: var(--primary-accent); /* Match background */
+}
+
+
+#settings-btn:hover,
+#add-book-btn:hover {
+    background-color: #e9ecef; /* Light grey background on hover for settings */
+    border-color: #adb5bd; /* Darker border on hover */
 }
 
 #add-book-btn:hover {
-    background-color: #006666; /* Darker teal on hover */
+    background-color: #006666; /* Darker teal on hover for add */
+    border-color: #006666;
+    color: white; /* Ensure text stays white */
 }
 
 #tab-navigation {
@@ -123,7 +146,7 @@ body {
 #book-list-container {
     display: grid;
     gap: 1.5rem; /* Increased gap between cards */
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    grid-template-columns: repeat(4, 1fr); /* Changed to 4 columns */
 }
 
 /* Book Item Styling */
@@ -137,14 +160,16 @@ body {
     transition: border-color 0.2s ease-in-out, transform 0.2s ease-in-out;
     position: relative; /* For status indicator positioning */
     display: flex; /* Use flexbox for layout */
-    align-items: flex-start; /* Align items to the top */
-    gap: 1rem; /* Space between image/placeholder and text info */
+    flex-direction: column; /* Stack items vertically */
+    align-items: center; /* Center items horizontally */
+    text-align: center; /* Center text */
+    /* Removed gap property */
 }
 
 .book-cover-thumbnail {
-    width: 60px; /* Adjust width as needed */
-    height: auto; /* Maintain aspect ratio */
-    max-height: 90px; /* Limit height */
+    width: 120px; /* Increased width */
+    height: 180px; /* Increased height */
+    /* Removed max-height and height: auto */
     object-fit: cover; /* Cover the area, might crop */
     border-radius: 4px; /* Slightly rounded corners for the image */
     flex-shrink: 0; /* Prevent image from shrinking */
@@ -152,8 +177,8 @@ body {
 }
 
 .book-cover-placeholder {
-    width: 60px;
-    height: 90px; /* Match max-height of image */
+    width: 120px; /* Increased width */
+    height: 180px; /* Increased height */
     background-color: var(--secondary-accent); /* Light grey placeholder */
     border-radius: 4px;
     flex-shrink: 0;
@@ -167,7 +192,8 @@ body {
 }
 
 .book-info {
-    flex-grow: 1; /* Allow text info to take remaining space */
+    /* Removed flex-grow: 1; */
+    margin-top: 0.75rem; /* Added space between cover and info */
     /* No specific styling needed here unless further customization is required */
 }
 
@@ -191,9 +217,8 @@ body {
 }
 
 .book-status-indicator {
-    position: absolute;
-    top: 1rem; /* Adjusted position */
-    right: 1rem;
+    /* Removed position: absolute, top, right */
+    margin-top: 0.5rem; /* Added space above status */
     font-size: 0.8rem;
     font-weight: 500;
     color: #6c757d; /* Muted grey */
@@ -289,6 +314,30 @@ body {
     min-height: 80px;
     resize: vertical;
 }
+
+/* Ensure settings form inherits general form styles */
+#settings-form label {
+    display: block;
+    margin-bottom: 0.3rem;
+    font-weight: bold;
+}
+
+#settings-form input[type="password"] {
+     width: 100%;
+    padding: 0.75rem; /* Increased padding */
+    border: 1px solid var(--border-color);
+    border-radius: 8px; /* Match other elements */
+    font-size: 1rem;
+    background-color: #fff; /* Ensure white background */
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#settings-form input:focus {
+    outline: none;
+    border-color: var(--primary-accent);
+    box-shadow: 0 0 0 2px rgba(0, 128, 128, 0.25); /* Teal focus ring */
+}
+
 
 .form-actions {
     display: flex;
@@ -406,35 +455,265 @@ body {
     display: none;
 }
 
-/* AI Recommendation Item Styling - Ensure consistency */
+/* --- Recommendation Results Styling --- */
+#ai-recommendation-results {
+    display: grid;
+    grid-template-columns: 1fr; /* Single column layout */
+    gap: 1.5rem; /* Gap between items */
+    margin-top: 1.5rem; /* Space above results */
+    /* Removed max-width and centering margins to allow full expansion */
+}
+
+/* Individual Recommendation Item */
 .ai-recommendation-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 1rem;
-    padding: 1rem; /* Consistent padding */
-    margin-bottom: 1rem;
-    border: 1px solid var(--border-color); /* Use standard border */
-    border-radius: 8px; /* Match card radius */
-    background-color: var(--card-bg); /* Use standard card background */
-}
-
-.ai-recommendation-item img {
-    width: 60px; /* Fixed width */
-    height: auto;
-    flex-shrink: 0; /* Prevent shrinking */
+    display: flex; /* Side-by-side layout */
+    align-items: flex-start; /* Align items to top */
+    gap: 1rem; /* Space between cover and info */
+    cursor: pointer; /* Make item clickable */
+    padding: 1rem;
     border: 1px solid var(--border-color);
-    border-radius: 4px; /* Slight radius */
+    border-radius: 8px;
+    background-color: var(--card-bg);
+    /* Removed previous inline styles from JS */
 }
 
-.ai-recommendation-item p {
-    font-size: 0.9rem; /* Consistent font size */
-    margin-top: 0; /* Adjust margin */
-    color: #6c757d; /* Muted grey */
-    line-height: 1.5; /* Adjust line height */
+.rec-cover-container {
+    width: 100px; /* Fixed width for cover area */
+    flex-shrink: 0; /* Prevent shrinking */
+}
+
+.rec-cover { /* Style for the actual image */
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 2 / 3; /* Maintain book cover aspect ratio */
+    object-fit: cover;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+}
+
+.rec-cover-placeholder { /* Style for the placeholder div */
+    width: 100%;
+    aspect-ratio: 2 / 3;
+    background-color: var(--secondary-accent);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem; /* Larger icon */
+    color: #adb5bd;
+}
+
+.rec-info-container {
+    flex-grow: 1; /* Allow info to take remaining space */
+    display: flex;
+    flex-direction: column; /* Stack info vertically */
+}
+
+.rec-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.1rem;
+    color: var(--text-color);
+}
+
+.rec-author {
+    font-size: 0.9rem;
+    color: #6c757d;
+    margin-bottom: 0.5rem;
+}
+
+.rec-description {
+    font-size: 0.9rem;
+    color: var(--text-color);
+    line-height: 1.5;
+    margin-bottom: 0.75rem;
+    /* Removed line clamping to show full description */
+    /* display: -webkit-box; */
+    /* -webkit-line-clamp: 3; */
+    /* -webkit-box-orient: vertical; */
+    /* overflow: hidden; */
+    /* text-overflow: ellipsis; */
+}
+
+.add-rec-to-list-btn {
+    /* Inherits .button styles */
+    margin-top: auto; /* Push button to bottom */
+    padding: 0.5rem 1rem; /* Slightly smaller padding */
+    align-self: flex-start; /* Align button left */
+}
+/* Add a secondary button style if needed */
+.button.button-secondary {
+     background-color: #fff;
+     color: var(--primary-accent);
+     border-color: var(--primary-accent);
+}
+.button.button-secondary:hover {
+     background-color: rgba(0, 128, 128, 0.1); /* Light teal background */
+     border-color: #006666;
+     color: #006666;
+}
+.add-rec-to-list-btn:disabled {
+    background-color: var(--secondary-accent);
+    border-color: var(--border-color);
+    color: #6c757d;
+    cursor: not-allowed;
+}
+
+/* --- Recommendation Controls Styling --- */
+
+/* General Button Styling */
+.button {
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 500;
+    border: 1px solid var(--border-color);
+    background-color: #fff;
+    color: var(--text-color);
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+    text-align: center;
+}
+
+.button:hover {
+    background-color: var(--secondary-accent);
+    border-color: #adb5bd;
+}
+
+.button.button-primary {
+    background-color: var(--primary-accent);
+    color: white;
+    border-color: var(--primary-accent);
+}
+
+.button.button-primary:hover {
+    background-color: #006666; /* Darker teal */
+    border-color: #006666;
+}
+
+.button.active {
+    background-color: var(--primary-accent);
+    color: white;
+    border-color: var(--primary-accent);
+    box-shadow: 0 0 0 2px rgba(0, 128, 128, 0.3); /* Focus ring for active */
+}
+
+/* Recommendation UI Specifics */
+.recommendation-controls h3 {
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+.rec-section {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+.rec-section:last-of-type {
+    border-bottom: none;
+    margin-bottom: 0; /* Remove margin for last section before results */
+}
+
+.rec-button-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.genre-select-btn {
+    /* Inherits .button styles */
+}
+
+.rec-cover-grid {
+    display: grid;
+    gap: 0.75rem; /* Slightly larger gap for covers */
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); /* Responsive grid */
+}
+
+.book-cover-select {
+    cursor: pointer;
+    border: 3px solid transparent; /* Border for active state */
+    padding: 2px;
+    border-radius: 4px; /* Match image radius */
+    transition: border-color 0.2s ease;
+    position: relative; /* For potential future overlays */
+    background-color: var(--secondary-accent); /* Background for placeholder */
+}
+
+.book-cover-select:hover {
+    border-color: #adb5bd; /* Subtle hover border */
+}
+
+.book-cover-select.active {
+    border-color: var(--primary-accent); /* Teal border for active */
+    box-shadow: 0 0 5px rgba(0, 128, 128, 0.5); /* Glow effect */
+}
+
+.book-cover-select img {
+    display: block;
+    width: 100%;
+    height: auto; /* Maintain aspect ratio */
+    aspect-ratio: 2 / 3; /* Enforce book cover aspect ratio */
+    object-fit: cover;
+    border-radius: 2px; /* Slight radius inside the border */
+}
+
+.book-cover-placeholder-small {
+    width: 100%;
+    aspect-ratio: 2 / 3;
+    background-color: var(--secondary-accent);
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #adb5bd;
+    font-size: 1.5rem; /* Larger icon */
+    /* Optional: Add a book icon */
+    /* content: '📚'; */
+}
+.book-cover-placeholder-small::before {
+     content: '📚'; /* Use pseudo-element for icon */
+}
+
+/* Styling for title/author below recommendation covers */
+.book-cover-info {
+    font-size: 0.8rem;
+    margin-top: 0.4rem; /* Space between cover and text */
+    text-align: center;
+    line-height: 1.3;
+    overflow: hidden; /* Prevent long text from breaking layout */
+}
+
+.book-cover-title {
+    display: block; /* Ensure title is on its own line */
+    font-weight: 600;
+    color: var(--text-color);
+    white-space: nowrap; /* Prevent wrapping */
+    overflow: hidden;
+    text-overflow: ellipsis; /* Add ellipsis for overflow */
+}
+
+.book-cover-author {
+    display: block; /* Ensure author is on its own line */
+    color: #6c757d; /* Muted color */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 
-/* Responsiveness Placeholder */
+#reroll-recs-btn {
+    /* Inherits .button and .button-primary */
+    margin-top: 1rem; /* Ensure space above */
+}
+
+
+/* Responsiveness */
+/* Removed media queries specifically targeting #ai-recommendation-results grid columns */
+
 @media (max-width: 600px) {
     #app-header h1 {
         font-size: 1.2rem;

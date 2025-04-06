@@ -18,8 +18,11 @@
 <body>
     <header id="app-header">
         <h1>My Books</h1>
-        <!-- Add Book Button Placeholder -->
-        <button id="add-book-btn" aria-label="Add new book">+</button>
+        <!-- Settings and Add Book Buttons -->
+        <div class="header-actions">
+             <button id="settings-btn" aria-label="Settings">⚙️</button>
+             <button id="add-book-btn" aria-label="Add new book">+</button>
+        </div>
     </header>
 
     <nav id="tab-navigation">
@@ -121,6 +124,26 @@
              </div>
          </div>
      </div>
+
+    <!-- Settings Modal Placeholder (Initially Hidden) -->
+    <div id="settings-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2>Settings</h2>
+            <form id="settings-form">
+                <div>
+                    <label for="gemini-api-key-input">Gemini API Key:</label>
+                    <input type="password" id="gemini-api-key-input" name="geminiApiKey" placeholder="Enter your API key">
+                    <p style="font-size: 0.8em; color: #6c757d; margin-top: 0.3rem;">Your key is stored locally in your browser and only sent to Google for recommendations.</p>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" id="save-api-key-btn">Save Key</button>
+                    <button type="button" class="cancel-btn">Close</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
 
     <script src="app.js" type="module"></script>
 </body>

@@ -10,6 +10,11 @@ const addBookBtn = document.getElementById('add-book-btn');
 const bookModal = document.getElementById('book-modal');
 const bookForm = document.getElementById('book-form');
 const bookDetailModal = document.getElementById('book-detail-modal');
+const settingsBtn = document.getElementById('settings-btn'); // Added
+const settingsModal = document.getElementById('settings-modal'); // Added
+const settingsForm = document.getElementById('settings-form'); // Added
+const apiKeyInput = document.getElementById('gemini-api-key-input'); // Added
+const saveApiKeyBtn = document.getElementById('save-api-key-btn'); // Added
 // Add more element references as needed
 
 // --- State ---
@@ -18,7 +23,7 @@ let db; // To hold the IndexedDB database instance
 
 // --- Constants ---
 const GEMINI_API_KEY_STORAGE_KEY = 'geminiApiKey';
-const PROVIDED_API_KEY = 'AIzaSyCTYlvj65ZbLkRYnqlkY9t9mGCtD5RDiEo'; // User provided key
+// REMOVED: const PROVIDED_API_KEY = '...';
 
 // --- API Key Management ---
 function saveApiKey(key) {
@@ -34,16 +39,11 @@ function saveApiKey(key) {
 }
 
 function getApiKey() {
-    let key = localStorage.getItem(GEMINI_API_KEY_STORAGE_KEY);
+    // Only retrieve from localStorage. Return null if not found.
+    const key = localStorage.getItem(GEMINI_API_KEY_STORAGE_KEY);
     if (!key) {
-        console.log("API Key not found in localStorage, using provided key as fallback.");
-        // In a real app, prompt the user here. For now, use the provided one.
-        if (saveApiKey(PROVIDED_API_KEY)) {
-             key = PROVIDED_API_KEY;
-        } else {
-            // Alert shown in saveApiKey if it fails
-            return null;
-        }
+        console.log("API Key not found in localStorage.");
+        return null;
     }
     return key;
 }
@@ -152,10 +152,41 @@ function setupEventListeners() {
     // Add/Edit Form Submission
     bookForm.addEventListener('submit', handleFormSubmit);
 
+    // Settings Button
+    settingsBtn.addEventListener('click', openSettingsModal);
+
+    // Settings Modal Form Submission (Save Key)
+    settingsForm.addEventListener('submit', (event) => {
+        event.preventDefault(); // Prevent default form submission
+        const newKey = apiKeyInput.value.trim();
+        if (newKey) {
+            if (saveApiKey(newKey)) {
+                alert("API Key saved successfully!"); // Provide feedback
+                closeSettingsModal();
+            }
+            // Error message handled within saveApiKey
+        } else {
+            // Optionally handle empty key submission (e.g., clear stored key?)
+            // For now, just close if empty or let saveApiKey handle it
+             if (saveApiKey('')) { // Save empty string to effectively clear
+                 alert("API Key cleared.");
+                 closeSettingsModal();
+             }
+        }
+    });
+
+    // Settings Modal Close/Cancel Buttons (using delegation on modal)
+    settingsModal.addEventListener('click', (event) => {
+        if (event.target.classList.contains('close-btn') || event.target.classList.contains('cancel-btn')) {
+            closeSettingsModal();
+        }
+    });
+
+
     // Clicking outside the modal content to close (optional)
     window.addEventListener('click', (event) => {
-        if (event.target === bookModal || event.target === bookDetailModal) {
-            closeModals();
+        if (event.target === bookModal || event.target === bookDetailModal || event.target === settingsModal) { // Added settingsModal
+            closeModals(); // Close all modals
         }
     });
 
@@ -306,9 +337,20 @@ function openDetailModal(book) {
 }
 
 
+function openSettingsModal() {
+    const currentKey = getApiKey(); // Get key from localStorage
+    apiKeyInput.value = currentKey || ''; // Populate input field
+    settingsModal.style.display = 'flex';
+}
+
+function closeSettingsModal() {
+    settingsModal.style.display = 'none';
+}
+
 function closeModals() {
     bookModal.style.display = 'none';
     bookDetailModal.style.display = 'none';
+    settingsModal.style.display = 'none'; // Also close settings modal
 }
 
 // --- Form Handling ---
@@ -927,57 +969,52 @@ async function renderRecommendations() {
     }
     bookListContainer.innerHTML = ''; // Clear previous content
 
+    // --- Check for API Key ---
+    const apiKey = getApiKey();
+    if (!apiKey) {
+        bookListContainer.innerHTML = `
+            <h2>AI Recommendations</h2>
+            <p style="color: orange; margin-bottom: 1rem;">
+                Please add your Google Gemini API key in the settings (⚙️ button in the header) to enable recommendations.
+            </p>
+            <button id="go-to-settings-btn">Go to Settings</button>
+        `;
+        // Add listener for the new button
+        const goToSettingsBtn = bookListContainer.querySelector('#go-to-settings-btn');
+        if (goToSettingsBtn) {
+            goToSettingsBtn.addEventListener('click', openSettingsModal);
+        }
+        return; // Stop rendering if no key
+    }
+
     // --- Create UI Elements ---
     const uiContainer = document.createElement('div');
     uiContainer.id = 'recommendation-ui';
+    uiContainer.classList.add('recommendation-controls'); // Add class for styling
 
     // --- Genre Section ---
     const genreSection = document.createElement('div');
-    genreSection.style.marginBottom = '1rem';
-    genreSection.style.paddingBottom = '1rem';
-    genreSection.style.borderBottom = '1px solid #eee';
-
-    const genreLabel = document.createElement('label');
-    genreLabel.htmlFor = 'rec-genre-select';
-    genreLabel.textContent = 'Get recommendations based on genre: ';
-    genreLabel.style.marginRight = '0.5rem';
-
-    const genreSelect = document.createElement('select');
-    genreSelect.id = 'rec-genre-select';
-    genreSelect.style.marginRight = '0.5rem';
-    genreSelect.style.padding = '0.3rem';
-
-    const getGenreRecsButton = document.createElement('button'); // Renamed variable
-    getGenreRecsButton.id = 'get-genre-recs-btn'; // New ID
-    getGenreRecsButton.textContent = 'Get Genre Recommendations';
-    getGenreRecsButton.style.padding = '0.3rem 0.6rem';
+    genreSection.classList.add('rec-section'); // Class for styling
+    const genreLabel = document.createElement('h3'); // Use heading
+    genreLabel.textContent = 'Recommend based on Genre:';
+    const genreButtonsContainer = document.createElement('div');
+    genreButtonsContainer.id = 'rec-genre-buttons'; // Container for buttons
+    genreButtonsContainer.classList.add('rec-button-group'); // Class for styling
 
     genreSection.appendChild(genreLabel);
-    genreSection.appendChild(genreSelect);
-    genreSection.appendChild(getGenreRecsButton); // Use renamed variable
+    genreSection.appendChild(genreButtonsContainer);
 
     // --- Book Section ---
     const bookSection = document.createElement('div');
-    bookSection.style.marginBottom = '1rem';
-
-    const bookLabel = document.createElement('label');
-    bookLabel.htmlFor = 'rec-book-select';
-    bookLabel.textContent = 'Or get recommendations based on a book you\'ve read: ';
-    bookLabel.style.marginRight = '0.5rem';
-
-    const bookSelect = document.createElement('select');
-    bookSelect.id = 'rec-book-select'; // New ID
-    bookSelect.style.marginRight = '0.5rem';
-    bookSelect.style.padding = '0.3rem';
-
-    const getBookRecsButton = document.createElement('button');
-    getBookRecsButton.id = 'get-book-recs-btn'; // New ID
-    getBookRecsButton.textContent = 'Get Similar Books';
-    getBookRecsButton.style.padding = '0.3rem 0.6rem';
+    bookSection.classList.add('rec-section'); // Class for styling
+    const bookLabel = document.createElement('h3'); // Use heading
+    bookLabel.textContent = 'Recommend based on a Read Book:';
+    const bookCoversContainer = document.createElement('div');
+    bookCoversContainer.id = 'rec-book-covers'; // Container for covers
+    bookCoversContainer.classList.add('rec-cover-grid'); // Class for styling
 
     bookSection.appendChild(bookLabel);
-    bookSection.appendChild(bookSelect);
-    bookSection.appendChild(getBookRecsButton);
+    bookSection.appendChild(bookCoversContainer);
 
     // --- Results Area ---
     const resultsContainer = document.createElement('div');
@@ -993,139 +1030,181 @@ async function renderRecommendations() {
 
     const rerollButton = document.createElement('button');
     rerollButton.id = 'reroll-recs-btn';
+    rerollButton.classList.add('button', 'button-primary'); // Add classes for styling
     rerollButton.textContent = 'Reroll Recommendations';
-    // Apply some basic styling or use CSS classes later
-    rerollButton.style.padding = '0.5rem 1rem';
-    rerollButton.style.cursor = 'pointer';
+    // Removed inline styles, will use CSS
     rerollContainer.appendChild(rerollButton);
 
     // Append sections to main container
     uiContainer.appendChild(genreSection);
     uiContainer.appendChild(bookSection);
 
-    bookListContainer.appendChild(uiContainer);
-    bookListContainer.appendChild(resultsContainer);
-    bookListContainer.appendChild(rerollContainer); // Add the reroll container
+    // Append sections to main container
+    uiContainer.appendChild(genreSection);
+    uiContainer.appendChild(bookSection);
+    uiContainer.appendChild(rerollContainer); // Move reroll button container here
+
+    bookListContainer.appendChild(uiContainer); // Add controls container
+    bookListContainer.appendChild(resultsContainer); // Add results container
 
 
-    // --- Populate Dropdowns ---
+    // --- Populate Selection Areas ---
     try {
-        const readBooks = await getBooksByStatus('read'); // Fetch once for both dropdowns
+        const readBooks = await getBooksByStatus('read'); // Fetch read books
 
-        // Populate Genre Dropdown
-        const uniqueGenres = new Set();
+        // Populate Genre Buttons
+        const predefinedGenres = [
+            'thriller', 'mystery', 'historical fiction', 'horror', 'memoir',
+            'biography', 'self-help', 'business', 'travel', 'cookbooks',
+            'poetry', 'graphic novel', 'young adult', 'children\'s', 'philosophy'
+        ];
+        const userGenres = new Set();
         readBooks.forEach(book => {
             if (book.genres && Array.isArray(book.genres)) {
-                book.genres.forEach(g => uniqueGenres.add(g.trim().toLowerCase()));
+                book.genres.forEach(g => userGenres.add(g.trim().toLowerCase()));
             }
         });
+        // Combine predefined and user genres, ensuring uniqueness and sorting
+        const allGenres = [...new Set([...predefinedGenres, ...userGenres])].sort();
 
-        if (uniqueGenres.size === 0) {
-            genreSelect.innerHTML = '<option value="">Read books with genres first</option>';
-            getGenreRecsButton.disabled = true;
+
+        if (allGenres.length === 0) {
+            // This case is less likely now with predefined genres, but keep as fallback
+            genreButtonsContainer.innerHTML = '<p>No genres available for recommendations.</p>';
         } else {
-            genreSelect.innerHTML = '<option value="">-- Select Genre --</option>';
-            uniqueGenres.forEach(genre => {
-                const option = document.createElement('option');
-                option.value = genre;
+            allGenres.forEach(genre => {
+                const button = document.createElement('button');
+                button.classList.add('genre-select-btn', 'button'); // Add classes
+                button.dataset.genre = genre;
                 // Capitalize first letter for display
-                option.textContent = genre.charAt(0).toUpperCase() + genre.slice(1);
-                genreSelect.appendChild(option);
+                button.textContent = genre.charAt(0).toUpperCase() + genre.slice(1);
+                genreButtonsContainer.appendChild(button);
             });
-            getGenreRecsButton.disabled = false;
         }
 
-        // Populate Book Dropdown
+        // Populate Book Covers
         if (readBooks.length === 0) {
-             bookSelect.innerHTML = '<option value="">Read books first</option>';
-             getBookRecsButton.disabled = true;
+             bookCoversContainer.innerHTML = '<p>Read books first to get recommendations based on a book.</p>';
         } else {
-            bookSelect.innerHTML = '<option value="">-- Select Book --</option>';
             readBooks.forEach(book => {
-                const option = document.createElement('option');
-                option.value = book.id; // Store book ID as value
-                option.textContent = `${book.title} by ${book.author}`;
-                bookSelect.appendChild(option);
+                const coverDiv = document.createElement('div');
+                coverDiv.classList.add('book-cover-select');
+                coverDiv.dataset.bookId = book.id;
+                // Tooltip removed as info is now displayed below
+                // coverDiv.title = `${book.title} by ${book.author}`;
+
+                const coverUrl = book.coverUrl || '';
+                const coverImgHtml = coverUrl
+                    ? `<img src="${coverUrl}" alt="Cover for ${book.title}" loading="lazy">`
+                    : '<div class="book-cover-placeholder-small"></div>'; // Smaller placeholder
+
+                // Add title and author info below the cover
+                const infoHtml = `
+                    <div class="book-cover-info">
+                        <span class="book-cover-title">${book.title}</span>
+                        <span class="book-cover-author">${book.author}</span>
+                    </div>
+                `;
+
+                coverDiv.innerHTML = coverImgHtml + infoHtml; // Combine cover and info
+                bookCoversContainer.appendChild(coverDiv);
             });
-             getBookRecsButton.disabled = false;
         }
 
     } catch (error) {
-        console.error("Error populating dropdowns:", error);
-        genreSelect.innerHTML = '<option value="">Error loading genres</option>';
-        getGenreRecsButton.disabled = true;
-        bookSelect.innerHTML = '<option value="">Error loading books</option>';
-        getBookRecsButton.disabled = true;
+        console.error("Error populating recommendation controls:", error);
+        genreButtonsContainer.innerHTML = '<p>Error loading genres.</p>';
+        bookCoversContainer.innerHTML = '<p>Error loading books.</p>';
     }
 
-    // --- Add Button Event Listeners ---
-    getGenreRecsButton.addEventListener('click', async () => { // Use renamed variable
-        const selectedGenre = genreSelect.value;
-        if (!selectedGenre) {
-            alert("Please select a genre.");
-            return;
+    // --- Add Event Listeners using Delegation ---
+
+    // Listener for Genre Buttons
+    genreButtonsContainer.addEventListener('click', async (event) => {
+        if (event.target.classList.contains('genre-select-btn')) {
+            const selectedButton = event.target;
+            const selectedGenre = selectedButton.dataset.genre;
+
+            // Toggle active state for genre buttons
+            genreButtonsContainer.querySelectorAll('.genre-select-btn').forEach(btn => btn.classList.remove('active'));
+            selectedButton.classList.add('active');
+
+            // Remove active state from book covers
+            bookCoversContainer.querySelectorAll('.book-cover-select').forEach(cover => cover.classList.remove('active'));
+
+            // Trigger recommendation
+            triggerAiRecommendation(selectedGenre, null, resultsContainer, rerollContainer);
         }
-        // Pass the reroll container to the trigger function
-        triggerAiRecommendation(selectedGenre, null, resultsContainer, rerollContainer, getGenreRecsButton, getBookRecsButton); // Pass null for book
     });
 
-    getBookRecsButton.addEventListener('click', async () => { // Listener for new button
-        const selectedBookId = bookSelect.value;
-        if (!selectedBookId) {
-            alert("Please select a book.");
-            return;
-        }
-        // Find the selected book object (needed for the prompt)
-        try {
-            const selectedBook = await getBook(selectedBookId);
-            if (!selectedBook) {
-                 alert("Error: Could not find the selected book details.");
-                 return;
-            }
-             // Pass the reroll container to the trigger function
-             triggerAiRecommendation(null, selectedBook, resultsContainer, rerollContainer, getGenreRecsButton, getBookRecsButton); // Pass null for genre
-        } catch (error) {
-             console.error("Error fetching selected book for recommendation:", error);
-             alert("Error fetching book details.");
-         }
-     });
+    // Listener for Book Covers
+    bookCoversContainer.addEventListener('click', async (event) => {
+        const selectedCover = event.target.closest('.book-cover-select');
+        if (selectedCover) {
+            const selectedBookId = selectedCover.dataset.bookId;
 
-    // Add event listener for the reroll button (using delegation on bookListContainer)
-    // Note: This listener is added here, but it relies on elements created within this function.
-    // It might be slightly cleaner to attach directly to rerollButton if it were guaranteed to exist,
-    // but delegation here works fine.
-    bookListContainer.addEventListener('click', async (event) => {
-        if (event.target.id === 'reroll-recs-btn') {
-            const rerollContainerElement = bookListContainer.querySelector('#ai-reroll-container'); // Find the container
-            if (!rerollContainerElement) return; // Safety check
+            // Toggle active state for book covers
+            bookCoversContainer.querySelectorAll('.book-cover-select').forEach(cover => cover.classList.remove('active'));
+            selectedCover.classList.add('active');
 
-            const currentCriteria = JSON.parse(rerollContainerElement.dataset.criteria || '{}');
-            const currentTitles = JSON.parse(rerollContainerElement.dataset.displayedTitles || '[]');
-            const resultsContainerElement = bookListContainer.querySelector('#ai-recommendation-results'); // Find results container
+            // Remove active state from genre buttons
+            genreButtonsContainer.querySelectorAll('.genre-select-btn').forEach(btn => btn.classList.remove('active'));
 
-            if ((currentCriteria.genre || currentCriteria.book) && resultsContainerElement) {
-                console.log("Rerolling with criteria:", currentCriteria, "excluding:", currentTitles);
-                // Find the original buttons again to pass them
-                const genreBtn = bookListContainer.querySelector('#get-genre-recs-btn');
-                const bookBtn = bookListContainer.querySelector('#get-book-recs-btn');
-                if (!genreBtn || !bookBtn) {
-                    console.error("Could not find original recommendation buttons for reroll.");
-                    return;
+            // Fetch book details and trigger recommendation
+            try {
+                const selectedBook = await getBook(selectedBookId);
+                if (!selectedBook) {
+                     alert("Error: Could not find the selected book details.");
+                     return;
                 }
-                // Call trigger again, passing the current titles as excludedTitles
-                triggerAiRecommendation(
-                    currentCriteria.genre,
-                    currentCriteria.book,
-                    resultsContainerElement,
-                    rerollContainerElement,
-                    genreBtn,
-                    bookBtn,
-                    currentTitles // Pass the titles to exclude
-                );
-            } else {
-                console.error("Could not determine criteria or results container for reroll.");
-            }
+                triggerAiRecommendation(null, selectedBook, resultsContainer, rerollContainer);
+            } catch (error) {
+                 console.error("Error fetching selected book for recommendation:", error);
+                 alert("Error fetching book details.");
+             }
         }
+    });
+
+    // Listener for Reroll Button
+    rerollButton.addEventListener('click', async () => { // Direct listener is fine here
+        const currentCriteria = JSON.parse(rerollContainer.dataset.criteria || '{}');
+        const currentTitles = JSON.parse(rerollContainer.dataset.displayedTitles || '[]');
+
+        if (currentCriteria.genre || currentCriteria.book) {
+            console.log("Rerolling with criteria:", currentCriteria, "excluding:", currentTitles);
+            // Call trigger again, passing the current titles as excludedTitles
+            // No need to pass buttons anymore as they aren't disabled/enabled individually
+            triggerAiRecommendation(
+                currentCriteria.genre,
+                currentCriteria.book,
+                resultsContainer,
+                rerollContainer,
+                null, // No button1 needed
+                null, // No button2 needed
+                currentTitles // Pass the titles to exclude
+            );
+        } else {
+            console.error("Could not determine criteria for reroll.");
+        }
+    });
+
+    // Listener for Add Recommendation to List button (within results container)
+    resultsContainer.addEventListener('click', async (event) => {
+        // Handle Add button clicks
+        if (event.target.classList.contains('add-rec-to-list-btn')) {
+            const button = event.target;
+            const recData = {
+                title: button.dataset.title,
+                author: button.dataset.author,
+                description: button.dataset.description,
+                coverUrl: button.dataset.coverUrl || null, // Handle potentially missing cover
+                // Add other relevant fields if available, otherwise they'll be null/default
+                genres: [], // Start with empty genres, user can edit
+                status: 'to-read', // Default status
+            };
+            await handleAddRecommendationToList(recData, button);
+        }
+        // Removed click listener for the item itself (ai-recommendation-item)
     });
 }
 
@@ -1135,20 +1214,21 @@ async function renderRecommendations() {
  * @param {object|null} book - The selected book or null.
  * @param {HTMLElement} resultsContainer - The container to display results.
  * @param {HTMLElement} rerollContainer - The container holding the reroll button.
- * @param {HTMLButtonElement} button1 - First button to disable/enable.
- * @param {HTMLButtonElement} button2 - Second button to disable/enable.
+ * @param {HTMLButtonElement | null} button1 - First button (no longer used).
+ * @param {HTMLButtonElement | null} button2 - Second button (no longer used).
  * @param {Array<string>} [excludedTitles=[]] - Optional array of titles to exclude in the prompt.
  */
-async function triggerAiRecommendation(genre, book, resultsContainer, rerollContainer, button1, button2, excludedTitles = []) {
+async function triggerAiRecommendation(genre, book, resultsContainer, rerollContainer, button1 = null, button2 = null, excludedTitles = []) {
     const apiKey = getApiKey();
     if (!apiKey) {
-        alert("API Key not found. Cannot fetch recommendations.");
+        // This case should ideally be prevented by renderRecommendations, but double-check
+        resultsContainer.innerHTML = '<p style="color: orange;">API Key missing. Please add it in Settings (⚙️).</p>';
+        // No buttons to re-enable here
         return;
     }
 
     resultsContainer.innerHTML = '<p>Fetching AI recommendations...</p>';
-    button1.disabled = true;
-    button2.disabled = true;
+    // No buttons to disable here
     rerollContainer.style.display = 'none'; // Hide reroll button during fetch
 
     try {
@@ -1171,51 +1251,58 @@ async function triggerAiRecommendation(genre, book, resultsContainer, rerollCont
             resultsContainer.appendChild(recommendationHeader);
 
             recommendations.forEach(rec => {
-                displayedTitles.push(rec.title); // Add title to list for potential reroll exclusion
+                displayedTitles.push(rec.title); // Add title for reroll exclusion
+
                 const recElement = document.createElement('div');
-                recElement.classList.add('ai-recommendation-item');
-                // Add basic styling here or use CSS classes later
-                recElement.style.cssText = `
-                    display: flex;
-                    align-items: flex-start;
-                    border: 1px solid #eee;
-                    padding: 0.8rem;
-                    margin-bottom: 0.8rem;
-                    border-radius: 4px;
-                    gap: 1rem; /* Space between image and text */
+                recElement.classList.add('ai-recommendation-item'); // Keep class for grid layout
+
+                // Sanitize data before putting it in dataset or HTML
+                const safeTitle = rec.title || 'Unknown Title';
+                const safeAuthor = rec.author || 'Unknown Author';
+                const safeDescription = rec.description || 'No description available.';
+                const safeCoverUrl = rec.coverUrl || '';
+
+                // Cover Image / Placeholder
+                const coverHtml = safeCoverUrl
+                    ? `<img src="${safeCoverUrl}" alt="Cover for ${safeTitle}" class="rec-cover" loading="lazy">`
+                    : '<div class="rec-cover-placeholder">📚</div>'; // Placeholder
+
+                // Info Container
+                const infoHtml = `
+                    <div class="rec-info-container">
+                        <h4 class="rec-title">${safeTitle}</h4>
+                        <p class="rec-author">by ${safeAuthor}</p>
+                        <p class="rec-description">${safeDescription}</p>
+                        <button class="button button-secondary add-rec-to-list-btn"
+                                data-title="${encodeURIComponent(safeTitle)}"
+                                data-author="${encodeURIComponent(safeAuthor)}"
+                                data-description="${encodeURIComponent(safeDescription)}"
+                                data-cover-url="${encodeURIComponent(safeCoverUrl)}">
+                            Add to To-Read
+                        </button>
+                    </div>
                 `;
 
-                const imgElement = document.createElement('img');
-                imgElement.alt = `Cover for ${rec.title}`;
-                imgElement.style.width = '60px'; // Adjust size as needed
-                imgElement.style.height = 'auto';
-                imgElement.style.flexShrink = '0'; // Prevent image from shrinking
-
-                const textElement = document.createElement('div');
-                textElement.innerHTML = `
-                    <strong>${rec.title}</strong> by ${rec.author}<br>
-                    <p style="font-size: 0.9em; margin-top: 0.3rem;">${rec.description}</p>
-                    <!-- TODO: Add button to add this to 'to-read' list -->
+                // Combine into the item element
+                recElement.innerHTML = `
+                    <div class="rec-cover-container">
+                        ${coverHtml}
+                    </div>
+                    ${infoHtml}
                 `;
 
-                recElement.appendChild(imgElement);
-                recElement.appendChild(textElement);
                 resultsContainer.appendChild(recElement);
 
-                // Set image source (handle potential null/undefined coverUrl)
-                if (rec.coverUrl) {
-                    imgElement.src = rec.coverUrl;
-                    imgElement.onerror = () => { imgElement.style.display = 'none'; }; // Hide if image fails to load
-                } else {
-                    // Fallback: Try fetching from Open Library if Gemini didn't provide URL
-                    console.log(`Gemini didn't provide cover for ${rec.title}, trying Open Library...`);
-                    fetchBookDetails(rec.title, rec.author).then(details => {
-                        if (details && details.coverUrl) {
-                            imgElement.src = details.coverUrl;
-                        } else {
-                            imgElement.style.display = 'none'; // Hide if no cover found
-                        }
-                    }).catch(() => { imgElement.style.display = 'none'; }); // Hide on error
+                // Handle image loading errors for fetched covers
+                if (safeCoverUrl) {
+                    const imgElement = recElement.querySelector('.rec-cover');
+                    imgElement.onerror = () => {
+                        // Replace failed image with placeholder
+                        const placeholder = document.createElement('div');
+                        placeholder.classList.add('rec-cover-placeholder');
+                        placeholder.textContent = '📚';
+                        imgElement.replaceWith(placeholder);
+                    };
                 }
             });
 
@@ -1232,8 +1319,65 @@ async function triggerAiRecommendation(genre, book, resultsContainer, rerollCont
         console.error("Error fetching/displaying AI recommendations:", error);
         resultsContainer.innerHTML = '<p>An error occurred while fetching recommendations.</p>';
     } finally {
-        button1.disabled = false; // Re-enable buttons
-        button2.disabled = false;
+        // No buttons to re-enable here
+    }
+}
+
+/**
+ * Handles adding a recommended book to the user's 'to-read' list.
+ * @param {object} recData - Object containing recommendation details (title, author, etc.).
+ * @param {HTMLButtonElement} button - The button that was clicked.
+ */
+async function handleAddRecommendationToList(recData, button) {
+    console.log("Adding recommendation to list:", recData);
+    button.disabled = true; // Prevent double clicks
+    button.textContent = 'Adding...';
+
+    try {
+        // Decode data from dataset
+        const newBook = {
+            id: generateUUID(), // Generate a new unique ID
+            title: decodeURIComponent(recData.title),
+            author: decodeURIComponent(recData.author),
+            description: decodeURIComponent(recData.description),
+            coverUrl: decodeURIComponent(recData.coverUrl) || null,
+            genres: [], // Start empty, user can edit
+            status: 'to-read',
+            startDate: null,
+            endDate: null,
+            rating: null,
+            notes: null,
+            dateAdded: new Date().toISOString(),
+            isRecommendation: true // Mark as originating from a recommendation
+        };
+
+        // Check if book already exists (simple check by title/author)
+        // A more robust check might involve searching the DB first
+        const existingBooks = await getAllBooks(); // Consider optimizing if list is huge
+        const alreadyExists = existingBooks.some(book =>
+            book.title.toLowerCase() === newBook.title.toLowerCase() &&
+            book.author.toLowerCase() === newBook.author.toLowerCase()
+        );
+
+        if (alreadyExists) {
+            alert(`"${newBook.title}" already exists in your library.`);
+            button.textContent = 'Already Added'; // Keep disabled
+        } else {
+            await addBook(newBook);
+            console.log(`Recommended book "${newBook.title}" added to To-Read list.`);
+            button.textContent = 'Added!'; // Indicate success
+            // Optionally, remove the item or keep it with 'Added!' status
+        }
+
+    } catch (error) {
+        console.error("Error adding recommended book to list:", error);
+        alert(`Error adding book: ${error.message || error}`);
+        button.textContent = 'Error Adding'; // Indicate error
+        // Re-enable after a delay? Or leave as error?
+        setTimeout(() => {
+             button.textContent = 'Add to To-Read';
+             button.disabled = false;
+        }, 2000);
     }
 }
 
