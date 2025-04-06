@@ -571,20 +571,27 @@ function createBookItemElement(book) {
     item.classList.add('book-item');
     item.dataset.bookId = book.id; // Store ID for later retrieval
 
-    // Basic structure: Title and Author
-    // TODO: Enhance this in Task 3.2.4 (expanded view details)
+    // Structure with Cover Image, Title, Author, and Status
+    const coverUrl = book.coverUrl || ''; // Use empty string if no URL
+    const coverHtml = coverUrl
+        ? `<img src="${coverUrl}" alt="Cover for ${book.title}" class="book-cover-thumbnail" loading="lazy">`
+        : '<div class="book-cover-placeholder"></div>'; // Placeholder if no cover
+
     item.innerHTML = `
-        <h3 class="book-title">${book.title}</h3>
-        <p class="book-author">${book.author}</p>
-        <div class="book-status-indicator">${book.status}</div>
-        <!-- Add cover thumbnail later if desired -->
+        ${coverHtml}
+        <div class="book-info">
+            <h3 class="book-title">${book.title}</h3>
+            <p class="book-author">${book.author}</p>
+            <div class="book-status-indicator">${book.status}</div>
+        </div>
     `;
     // Click listener is handled by delegation in setupEventListeners
     return item;
 }
 
 /**
- * Fetches books based on status and renders them in the list container.
+ * Fetches books based on status, attempts to fetch missing cover images,
+ * updates the database, and renders them in the list container.
  * @param {string} status - The status to filter by ('reading', 'read', 'to-read').
  */
 async function loadAndRenderBooks(status) {
@@ -595,10 +602,43 @@ async function loadAndRenderBooks(status) {
     }
     bookListContainer.innerHTML = '<p>Loading books...</p>'; // Show loading indicator
     try {
-        // Use the imported DB function
-        const books = await getBooksByStatus(status);
+        // 1. Fetch books from DB
+        let books = await getBooksByStatus(status);
         console.log(`Books loaded for status ${status}:`, books);
 
+        // 2. Check for and fetch missing cover images
+        const fetchPromises = books.map(async (book) => {
+            if (!book.coverUrl) {
+                console.log(`Cover missing for ${book.title}, attempting fetch...`);
+                try {
+                    const details = await fetchBookDetails(book.title, book.author);
+                    if (details && details.coverUrl) {
+                        console.log(`Cover found for ${book.title}: ${details.coverUrl}`);
+                        book.coverUrl = details.coverUrl; // Update book object in memory
+                        // Also update description/pageCount if fetched and missing
+                        if (details.description && !book.description) book.description = details.description;
+                        if (details.pageCount && !book.pageCount) book.pageCount = details.pageCount;
+
+                        // Update the book in the database (fire and forget, don't block rendering)
+                        updateBook(book).catch(err => console.error(`Error updating book ${book.id} with coverUrl:`, err));
+                        return true; // Indicate an update happened
+                    } else {
+                        console.log(`Could not fetch cover for ${book.title}.`);
+                        return false;
+                    }
+                } catch (fetchError) {
+                    console.error(`Error fetching details for ${book.title}:`, fetchError);
+                    return false;
+                }
+            }
+            return false; // No fetch attempted or needed
+        });
+
+        // Wait for all fetch attempts to complete (or fail)
+        await Promise.all(fetchPromises);
+        console.log("Cover fetching process completed.");
+
+        // 3. Render the books (using potentially updated book objects)
         bookListContainer.innerHTML = ''; // Clear loading/previous content
 
         if (books.length === 0) {
@@ -610,8 +650,9 @@ async function loadAndRenderBooks(status) {
             const bookElement = createBookItemElement(book);
             bookListContainer.appendChild(bookElement);
         });
+
     } catch (error) {
-        console.error(`Error loading books for status ${status}:`, error);
+        console.error(`Error loading or processing books for status ${status}:`, error);
         bookListContainer.innerHTML = `<p>Error loading books. Please try again.</p>`;
     }
 }
@@ -623,7 +664,7 @@ async function loadAndRenderBooks(status) {
 // (Placeholder - To be implemented in Task 3.7)
 
 /**
- * Fetches additional book details (cover, description, page count) from Open Library API.
+ * Fetches additional book details (cover, description, page count) from Google Books API.
  * @param {string} title - The book title.
  * @param {string} author - The book author.
  * @returns {Promise<object|null>} A promise that resolves with an object containing { coverUrl, description, pageCount } or null if failed.
@@ -634,11 +675,14 @@ async function fetchBookDetails(title, author) {
         return null; // Cannot fetch when offline
     }
 
-    // Basic query construction (more robust encoding might be needed)
-    const query = `${title} ${author}`.replace(/\s+/g, '+');
-    const url = `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=1`; // Limit to 1 result for simplicity
+    // Construct query for Google Books API
+    // Using `intitle:` and `inauthor:` might give more specific results
+    const query = `intitle:${encodeURIComponent(title)}+inauthor:${encodeURIComponent(author)}`;
+    // Add projection=lite to get only essential fields, fields parameter for specifics
+    const fields = 'items(volumeInfo(title,authors,description,pageCount,imageLinks))';
+    const url = `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=1&projection=lite&fields=${fields}`;
 
-    console.log(`Fetching details from Open Library for: ${title} by ${author}`);
+    console.log(`Fetching details from Google Books for: ${title} by ${author}`);
 
     try {
         const response = await fetch(url);
@@ -646,42 +690,51 @@ async function fetchBookDetails(title, author) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
-        console.log("Open Library API Response:", data);
+        console.log("Google Books API Response:", data);
 
-        if (data.docs && data.docs.length > 0) {
-            const bookData = data.docs[0];
+        if (data.items && data.items.length > 0) {
+            const volumeInfo = data.items[0].volumeInfo;
             const details = {
                 coverUrl: null,
                 description: null,
                 pageCount: null
             };
 
-            // Get Cover URL (using cover_i ID)
-            if (bookData.cover_i) {
-                details.coverUrl = `https://covers.openlibrary.org/b/id/${bookData.cover_i}-M.jpg`; // Medium size cover
+            // Get Cover URL (prefer thumbnail or smallThumbnail, ensure HTTPS)
+            if (volumeInfo.imageLinks) {
+                let imageUrl = volumeInfo.imageLinks.thumbnail || volumeInfo.imageLinks.smallThumbnail;
+                if (imageUrl) {
+                    // Ensure HTTPS
+                    details.coverUrl = imageUrl.replace(/^http:/, 'https:');
+                }
             }
 
-            // Get Description (using first_sentence_value or first paragraph of description)
-            // Open Library description data can be sparse or inconsistent.
-            if (bookData.first_sentence && bookData.first_sentence.length > 0) {
-                 details.description = bookData.first_sentence[0];
+            // Get Description
+            if (volumeInfo.description) {
+                // Limit description length if needed
+                details.description = volumeInfo.description.substring(0, 300) + (volumeInfo.description.length > 300 ? '...' : '');
             }
-            // TODO: Potentially fetch full work/edition details for better description if needed
 
             // Get Page Count
-            if (bookData.number_of_pages_median) {
-                details.pageCount = bookData.number_of_pages_median;
+            if (volumeInfo.pageCount) {
+                details.pageCount = volumeInfo.pageCount;
             }
 
-            console.log("Fetched details:", details);
-            return details;
+            console.log("Fetched details from Google Books:", details);
+            // Return details only if at least one piece of info was found
+            if (details.coverUrl || details.description || details.pageCount) {
+                return details;
+            } else {
+                console.log("No usable details found in Google Books response for:", title);
+                return null;
+            }
         } else {
-            console.log("No results found on Open Library.");
+            console.log("No results found on Google Books for:", title);
             return null;
         }
 
     } catch (error) {
-        console.error('Error fetching book details from Open Library:', error);
+        console.error('Error fetching book details from Google Books:', error);
         return null; // Return null on error
     }
 }
@@ -761,9 +814,10 @@ async function generateSimpleRecommendations(topAuthors, topGenres) {
  * @param {object | null} basedOnBook - The specific book to base recommendations on (or null if genre-based).
  * @param {Array<object>} readBooks - An array of all books the user has read.
  * @param {string} apiKey - The Google Gemini API key.
+ * @param {Array<string>} [excludedTitles=[]] - Optional array of titles to exclude in the prompt.
  * @returns {Promise<Array<{title: string, author: string, description: string, coverUrl?: string}>|null>} A promise resolving with recommendations or null.
- */
-async function fetchGeminiRecommendations(genre, basedOnBook, readBooks, apiKey) {
+  */
+async function fetchGeminiRecommendations(genre, basedOnBook, readBooks, apiKey, excludedTitles = []) {
     const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-001:generateContent?key=${apiKey}`; // Updated model name
 
     // --- Construct the prompt ---
@@ -785,6 +839,14 @@ async function fetchGeminiRecommendations(genre, basedOnBook, readBooks, apiKey)
         return null; // Need either genre or book
     }
 
+    // Add excluded titles to the prompt if any were provided
+    if (excludedTitles.length > 0) {
+        prompt += `\nAlso, please try to avoid recommending the following titles as they were just shown:\n`;
+        excludedTitles.forEach(title => {
+            prompt += `- "${title}"\n`;
+        });
+    }
+
     prompt += `\nFor each recommendation, provide the title, author, and a very short (1-2 sentence) description. If possible, also provide a cover image URL (key: "coverUrl") from a reliable source like Open Library Covers (e.g., https://covers.openlibrary.org/b/id/...). If no cover URL is easily found, omit the coverUrl key or set it to null.`;
     prompt += `\nPlease format the response as a JSON array of objects, where each object has keys "title", "author", "description", and optionally "coverUrl". Example: [{"title": "Book Title", "author": "Author Name", "description": "Short description.", "coverUrl": "https://..."}]`;
 
@@ -799,7 +861,7 @@ async function fetchGeminiRecommendations(genre, basedOnBook, readBooks, apiKey)
             body: JSON.stringify({
                 contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: {
-                    temperature: 0.7,
+                    temperature: 0.7, // Slightly higher temperature for more varied rerolls
                 }
             }),
         });
@@ -922,12 +984,28 @@ async function renderRecommendations() {
     resultsContainer.id = 'ai-recommendation-results';
     resultsContainer.style.marginTop = '1rem';
 
+    // --- Reroll Button Area (Initially Hidden) ---
+    const rerollContainer = document.createElement('div');
+    rerollContainer.id = 'ai-reroll-container';
+    rerollContainer.style.marginTop = '1rem';
+    rerollContainer.style.textAlign = 'center'; // Center the button
+    rerollContainer.style.display = 'none'; // Hide initially
+
+    const rerollButton = document.createElement('button');
+    rerollButton.id = 'reroll-recs-btn';
+    rerollButton.textContent = 'Reroll Recommendations';
+    // Apply some basic styling or use CSS classes later
+    rerollButton.style.padding = '0.5rem 1rem';
+    rerollButton.style.cursor = 'pointer';
+    rerollContainer.appendChild(rerollButton);
+
     // Append sections to main container
     uiContainer.appendChild(genreSection);
     uiContainer.appendChild(bookSection);
 
     bookListContainer.appendChild(uiContainer);
     bookListContainer.appendChild(resultsContainer);
+    bookListContainer.appendChild(rerollContainer); // Add the reroll container
 
 
     // --- Populate Dropdowns ---
@@ -987,7 +1065,8 @@ async function renderRecommendations() {
             alert("Please select a genre.");
             return;
         }
-        triggerAiRecommendation(selectedGenre, null, resultsContainer, getGenreRecsButton, getBookRecsButton); // Pass null for book
+        // Pass the reroll container to the trigger function
+        triggerAiRecommendation(selectedGenre, null, resultsContainer, rerollContainer, getGenreRecsButton, getBookRecsButton); // Pass null for book
     });
 
     getBookRecsButton.addEventListener('click', async () => { // Listener for new button
@@ -1003,10 +1082,49 @@ async function renderRecommendations() {
                  alert("Error: Could not find the selected book details.");
                  return;
             }
-             triggerAiRecommendation(null, selectedBook, resultsContainer, getGenreRecsButton, getBookRecsButton); // Pass null for genre
+             // Pass the reroll container to the trigger function
+             triggerAiRecommendation(null, selectedBook, resultsContainer, rerollContainer, getGenreRecsButton, getBookRecsButton); // Pass null for genre
         } catch (error) {
              console.error("Error fetching selected book for recommendation:", error);
              alert("Error fetching book details.");
+         }
+     });
+
+    // Add event listener for the reroll button (using delegation on bookListContainer)
+    // Note: This listener is added here, but it relies on elements created within this function.
+    // It might be slightly cleaner to attach directly to rerollButton if it were guaranteed to exist,
+    // but delegation here works fine.
+    bookListContainer.addEventListener('click', async (event) => {
+        if (event.target.id === 'reroll-recs-btn') {
+            const rerollContainerElement = bookListContainer.querySelector('#ai-reroll-container'); // Find the container
+            if (!rerollContainerElement) return; // Safety check
+
+            const currentCriteria = JSON.parse(rerollContainerElement.dataset.criteria || '{}');
+            const currentTitles = JSON.parse(rerollContainerElement.dataset.displayedTitles || '[]');
+            const resultsContainerElement = bookListContainer.querySelector('#ai-recommendation-results'); // Find results container
+
+            if ((currentCriteria.genre || currentCriteria.book) && resultsContainerElement) {
+                console.log("Rerolling with criteria:", currentCriteria, "excluding:", currentTitles);
+                // Find the original buttons again to pass them
+                const genreBtn = bookListContainer.querySelector('#get-genre-recs-btn');
+                const bookBtn = bookListContainer.querySelector('#get-book-recs-btn');
+                if (!genreBtn || !bookBtn) {
+                    console.error("Could not find original recommendation buttons for reroll.");
+                    return;
+                }
+                // Call trigger again, passing the current titles as excludedTitles
+                triggerAiRecommendation(
+                    currentCriteria.genre,
+                    currentCriteria.book,
+                    resultsContainerElement,
+                    rerollContainerElement,
+                    genreBtn,
+                    bookBtn,
+                    currentTitles // Pass the titles to exclude
+                );
+            } else {
+                console.error("Could not determine criteria or results container for reroll.");
+            }
         }
     });
 }
@@ -1016,10 +1134,12 @@ async function renderRecommendations() {
  * @param {string|null} genre - The selected genre or null.
  * @param {object|null} book - The selected book or null.
  * @param {HTMLElement} resultsContainer - The container to display results.
+ * @param {HTMLElement} rerollContainer - The container holding the reroll button.
  * @param {HTMLButtonElement} button1 - First button to disable/enable.
  * @param {HTMLButtonElement} button2 - Second button to disable/enable.
+ * @param {Array<string>} [excludedTitles=[]] - Optional array of titles to exclude in the prompt.
  */
-async function triggerAiRecommendation(genre, book, resultsContainer, button1, button2) {
+async function triggerAiRecommendation(genre, book, resultsContainer, rerollContainer, button1, button2, excludedTitles = []) {
     const apiKey = getApiKey();
     if (!apiKey) {
         alert("API Key not found. Cannot fetch recommendations.");
@@ -1029,11 +1149,13 @@ async function triggerAiRecommendation(genre, book, resultsContainer, button1, b
     resultsContainer.innerHTML = '<p>Fetching AI recommendations...</p>';
     button1.disabled = true;
     button2.disabled = true;
+    rerollContainer.style.display = 'none'; // Hide reroll button during fetch
 
     try {
         const readBooks = await getBooksByStatus('read'); // Need read books for context
         // Pass either genre OR book to the fetch function
-        const recommendations = await fetchGeminiRecommendations(genre, book, readBooks, apiKey);
+        // Pass excludedTitles to the fetch function
+        const recommendations = await fetchGeminiRecommendations(genre, book, readBooks, apiKey, excludedTitles);
 
         resultsContainer.innerHTML = ''; // Clear loading message
 
@@ -1041,6 +1163,7 @@ async function triggerAiRecommendation(genre, book, resultsContainer, button1, b
             resultsContainer.innerHTML = '<p>Could not get AI recommendations. Try a different selection or check the console.</p>';
         } else {
             const recommendationHeader = document.createElement('h3');
+            const displayedTitles = []; // Keep track of titles shown in this batch
             recommendationHeader.textContent = book
                 ? `AI Recommendations based on "${book.title}":`
                 : `AI Recommendations for ${genre}:`;
@@ -1048,6 +1171,7 @@ async function triggerAiRecommendation(genre, book, resultsContainer, button1, b
             resultsContainer.appendChild(recommendationHeader);
 
             recommendations.forEach(rec => {
+                displayedTitles.push(rec.title); // Add title to list for potential reroll exclusion
                 const recElement = document.createElement('div');
                 recElement.classList.add('ai-recommendation-item');
                 // Add basic styling here or use CSS classes later
@@ -1094,6 +1218,14 @@ async function triggerAiRecommendation(genre, book, resultsContainer, button1, b
                     }).catch(() => { imgElement.style.display = 'none'; }); // Hide on error
                 }
             });
+
+            // Show and configure the reroll button
+            if (recommendations.length > 0) {
+                rerollContainer.style.display = 'block'; // Show the button
+                // Store current criteria and displayed titles for the next reroll
+                rerollContainer.dataset.criteria = JSON.stringify({ genre, book }); // Store the actual book object if available
+                rerollContainer.dataset.displayedTitles = JSON.stringify(displayedTitles);
+            }
         }
 
     } catch (error) {

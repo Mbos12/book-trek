@@ -1,13 +1,13 @@
 /* Basic Reset & Root Variables */
 :root {
-    --bg-color: #FDF0D5; /* Warm beige/cream */
-    --text-color: #333;
-    --primary-accent: #D88C9A; /* Muted pink/coral */
-    --secondary-accent: #F2D0A9; /* Lighter peach */
-    --border-color: #ccc;
-    --modal-bg: rgba(0, 0, 0, 0.5);
-    --card-bg: #fff;
-    --shadow: 0 2px 4px rgba(0,0,0,0.1);
+    --bg-color: #f8f9fa; /* Light grey */
+    --text-color: #212529; /* Dark grey */
+    --primary-accent: #008080; /* Deep Teal */
+    --secondary-accent: #e9ecef; /* Lighter grey */
+    --border-color: #dee2e6; /* Light border */
+    --modal-bg: rgba(0, 0, 0, 0.5); /* Keep semi-transparent black */
+    --card-bg: #fff; /* White */
+    --shadow: 0 1px 3px rgba(0,0,0,0.05); /* Subtle shadow */
     --font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
@@ -21,18 +21,20 @@ body {
     font-family: var(--font-family);
     background-color: var(--bg-color);
     color: var(--text-color);
-    line-height: 1.6;
+    line-height: 1.7; /* Slightly increased line-height */
     padding-bottom: 60px; /* Space for potential fixed bottom nav or elements */
+    margin: 0; /* Ensure no default margin */
 }
 
 /* Basic Layout Styling */
 #app-header {
-    background-color: var(--secondary-accent);
-    padding: 1rem;
+    background-color: var(--card-bg); /* White background */
+    padding: 0.75rem 1rem; /* Slightly reduced padding */
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: var(--shadow);
+    border-bottom: 1px solid var(--border-color); /* Subtle border */
+    box-shadow: none; /* Remove shadow for cleaner look */
 }
 
 #app-header h1 {
@@ -44,21 +46,27 @@ body {
     background-color: var(--primary-accent);
     color: white;
     border: none;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    font-size: 1.5rem;
+    border-radius: 8px; /* Slightly squared corners */
+    width: 36px; /* Adjusted size */
+    height: 36px;
+    font-size: 1.4rem;
     cursor: pointer;
-    line-height: 40px; /* Center the '+' */
+    line-height: 36px; /* Center the '+' */
     text-align: center;
+    transition: background-color 0.2s ease;
+}
+
+#add-book-btn:hover {
+    background-color: #006666; /* Darker teal on hover */
 }
 
 #tab-navigation {
     display: flex;
-    justify-content: space-around;
-    background-color: var(--card-bg);
-    padding: 0.5rem 0;
-    box-shadow: var(--shadow);
+    justify-content: space-around; /* Keep space-around for now */
+    background-color: var(--card-bg); /* White background */
+    padding: 0; /* Remove padding */
+    border-bottom: 1px solid var(--border-color); /* Add border */
+    box-shadow: none; /* Remove shadow */
     position: sticky; /* Keep tabs visible */
     top: 0;
     z-index: 10;
@@ -66,83 +74,134 @@ body {
 
 #search-filter-bar {
     padding: 0.75rem 1rem;
-    background-color: var(--card-bg);
+    background-color: var(--bg-color); /* Match body background */
     border-bottom: 1px solid var(--border-color);
     /* Consider making sticky if needed: position: sticky; top: 50px; z-index: 9; */
 }
 
 #search-input {
     width: 100%;
-    padding: 0.5rem 0.8rem;
+    padding: 0.6rem 1rem; /* Increased padding */
     font-size: 1rem;
     border: 1px solid var(--border-color);
-    border-radius: 20px; /* Pill shape */
+    border-radius: 8px; /* Match button radius */
+    background-color: var(--card-bg); /* White background */
+}
+
+#search-input:focus {
+    outline: none;
+    border-color: var(--primary-accent);
+    box-shadow: 0 0 0 2px rgba(0, 128, 128, 0.25); /* Teal focus ring */
 }
 
 .tab-button {
-    padding: 0.5rem 1rem;
+    padding: 0.8rem 1rem; /* Increased padding */
     border: none;
     background: none;
     cursor: pointer;
     font-size: 1rem;
-    color: var(--text-color);
+    color: #6c757d; /* Muted grey for inactive tabs */
     border-bottom: 3px solid transparent;
-    transition: border-color 0.3s ease;
+    transition: color 0.2s ease, border-color 0.2s ease;
+    font-weight: 500; /* Medium weight */
+}
+
+.tab-button:hover {
+    color: var(--text-color); /* Darker text on hover */
 }
 
 .tab-button.active {
     border-bottom-color: var(--primary-accent);
-    font-weight: bold;
+    color: var(--primary-accent); /* Blue text for active */
+    font-weight: 600; /* Slightly bolder */
 }
 
 #main-content {
-    padding: 1rem;
+    padding: 1.5rem; /* Increased padding for more whitespace */
 }
 
 #book-list-container {
-    /* Placeholder for list styles */
     display: grid;
-    gap: 1rem;
-    /* Basic grid setup, adjust later */
+    gap: 1.5rem; /* Increased gap between cards */
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
 }
 
 /* Book Item Styling */
 .book-item {
     background-color: var(--card-bg);
-    padding: 1rem;
-    border-radius: 8px;
-    box-shadow: var(--shadow);
+    padding: 1rem; /* Adjusted padding */
+    border-radius: 8px; /* Keep rounded corners */
+    border: 1px solid var(--border-color); /* Add subtle border */
+    box-shadow: none; /* Remove shadow for flat design */
     cursor: pointer;
-    transition: transform 0.2s ease-in-out;
+    transition: border-color 0.2s ease-in-out, transform 0.2s ease-in-out;
     position: relative; /* For status indicator positioning */
+    display: flex; /* Use flexbox for layout */
+    align-items: flex-start; /* Align items to the top */
+    gap: 1rem; /* Space between image/placeholder and text info */
 }
 
+.book-cover-thumbnail {
+    width: 60px; /* Adjust width as needed */
+    height: auto; /* Maintain aspect ratio */
+    max-height: 90px; /* Limit height */
+    object-fit: cover; /* Cover the area, might crop */
+    border-radius: 4px; /* Slightly rounded corners for the image */
+    flex-shrink: 0; /* Prevent image from shrinking */
+    border: 1px solid var(--border-color); /* Subtle border around cover */
+}
+
+.book-cover-placeholder {
+    width: 60px;
+    height: 90px; /* Match max-height of image */
+    background-color: var(--secondary-accent); /* Light grey placeholder */
+    border-radius: 4px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #adb5bd; /* Lighter grey text */
+    font-size: 0.8rem;
+    /* Optional: Add a book icon or text */
+    /* content: '📚'; */
+}
+
+.book-info {
+    flex-grow: 1; /* Allow text info to take remaining space */
+    /* No specific styling needed here unless further customization is required */
+}
+
+
 .book-item:hover {
-    transform: translateY(-3px);
+    transform: translateY(-2px); /* Subtle lift */
+    border-color: var(--primary-accent); /* Highlight border on hover (Teal) */
 }
 
 .book-item h3 { /* book-title */
     font-size: 1.1rem;
-    margin-bottom: 0.3rem;
+    margin-bottom: 0.25rem; /* Reduced margin */
+    font-weight: 600; /* Slightly bolder title */
+    color: var(--text-color);
 }
 
 .book-item p { /* book-author */
     font-size: 0.9rem;
-    color: #555;
-    margin-bottom: 0.5rem;
+    color: #6c757d; /* Muted grey for author */
+    margin-bottom: 0; /* Remove bottom margin */
 }
 
 .book-status-indicator {
     position: absolute;
-    top: 10px;
-    right: 10px;
-    font-size: 0.75rem;
-    padding: 2px 6px;
-    border-radius: 4px;
-    background-color: var(--secondary-accent);
-    color: var(--text-color);
+    top: 1rem; /* Adjusted position */
+    right: 1rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #6c757d; /* Muted grey */
     text-transform: capitalize;
+    /* Removed background, padding, border-radius for minimalist text look */
+    background-color: transparent;
+    padding: 0;
+    border-radius: 0;
 }
 
 
@@ -164,25 +223,27 @@ body {
 .modal-content {
     background-color: var(--card-bg);
     margin: auto;
-    padding: 20px;
-    border: 1px solid var(--border-color);
-    width: 80%;
+    padding: 25px 30px; /* Increased padding */
+    border: none; /* Remove border, rely on shadow */
+    width: 90%; /* Slightly wider on mobile */
     max-width: 500px;
-    border-radius: 8px;
+    border-radius: 12px; /* Larger radius */
     position: relative;
-    box-shadow: var(--shadow);
-    max-height: 80vh; /* Limit height and allow scrolling */
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); /* Slightly stronger shadow for modals */
+    max-height: 85vh; /* Adjust max height */
     overflow-y: auto; /* Enable vertical scroll if content overflows */
 }
 
 .close-btn {
-    color: #aaa;
+    color: #6c757d; /* Muted grey */
     position: absolute;
-    top: 10px;
-    right: 15px;
-    font-size: 28px;
-    font-weight: bold;
+    top: 15px; /* Adjusted position */
+    right: 20px;
+    font-size: 24px; /* Slightly smaller */
+    font-weight: normal; /* Not bold */
     cursor: pointer;
+    line-height: 1;
+    transition: color 0.2s ease;
 }
 
 .close-btn:hover,
@@ -208,10 +269,20 @@ body {
 #book-form select,
 #book-form textarea {
     width: 100%;
-    padding: 0.5rem;
+    padding: 0.75rem; /* Increased padding */
     border: 1px solid var(--border-color);
-    border-radius: 4px;
+    border-radius: 8px; /* Match other elements */
     font-size: 1rem;
+    background-color: #fff; /* Ensure white background */
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#book-form input:focus,
+#book-form select:focus,
+#book-form textarea:focus {
+    outline: none;
+    border-color: var(--primary-accent);
+    box-shadow: 0 0 0 2px rgba(0, 128, 128, 0.25); /* Teal focus ring */
 }
 
 #book-form textarea {
@@ -227,30 +298,43 @@ body {
 }
 
 .form-actions button {
-    padding: 0.6rem 1.2rem;
-    border-radius: 4px;
+    padding: 0.75rem 1.5rem; /* Increased padding */
+    border-radius: 8px; /* Match other elements */
     cursor: pointer;
     font-size: 1rem;
-    border: none;
+    font-weight: 500;
+    border: 1px solid transparent; /* Base border */
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .form-actions button[type="submit"] {
     background-color: var(--primary-accent);
     color: white;
+    border-color: var(--primary-accent);
+}
+.form-actions button[type="submit"]:hover {
+    background-color: #006666; /* Darker teal */
+    border-color: #006666;
 }
 
 .form-actions .cancel-btn {
-    background-color: #eee;
+    background-color: var(--secondary-accent); /* Light grey */
     color: var(--text-color);
+    border-color: var(--secondary-accent);
+}
+.form-actions .cancel-btn:hover {
+    background-color: #d3d9df; /* Darker grey */
+    border-color: #d3d9df;
 }
 
 /* Basic Detail Modal Styling */
 #book-detail-modal .modal-content img {
     display: block;
-    margin: 1rem auto;
+    margin: 1rem auto 1.5rem auto; /* Adjust margin */
     max-width: 150px;
     height: auto;
     border: 1px solid var(--border-color);
+    border-radius: 4px; /* Slight radius for image */
 }
 
 #book-detail-modal p {
@@ -258,7 +342,8 @@ body {
 }
 
 #book-detail-modal strong {
-    color: var(--primary-accent);
+    color: var(--text-color); /* Use standard text color */
+    font-weight: 600; /* Make labels slightly bolder */
 }
 
 .detail-actions {
@@ -272,40 +357,46 @@ body {
 }
 
 .detail-actions button {
-    padding: 0.6rem 1rem; /* Slightly adjust padding */
-    border-radius: 4px;
+    padding: 0.6rem 1.2rem; /* Consistent padding */
+    border-radius: 8px; /* Match other elements */
     cursor: pointer;
-    font-size: 1rem;
-    border: 1px solid; /* Set border style */
+    font-size: 0.95rem; /* Slightly smaller text */
+    font-weight: 500;
+    border: 1px solid; /* Keep border */
     margin-bottom: 0.5rem; /* Add space below buttons if they wrap */
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 /* Specific button styles */
 .status-change-btn {
-    background-color: #e0e0e0; /* Neutral background */
+    background-color: #fff; /* White background */
     color: var(--text-color);
-    border-color: #ccc;
+    border-color: var(--border-color); /* Light grey border */
 }
 .status-change-btn:hover {
-    background-color: #d0d0d0;
+    background-color: #f8f9fa; /* Light grey hover */
+    border-color: #adb5bd;
 }
 
 #edit-book-btn {
-    background-color: var(--secondary-accent);
+    background-color: var(--secondary-accent); /* Light grey */
     color: var(--text-color);
     border-color: var(--secondary-accent);
 }
 #edit-book-btn:hover {
-    opacity: 0.9;
+    background-color: #d3d9df; /* Darker grey */
+    border-color: #d3d9df;
 }
 
 #delete-book-btn {
     background-color: transparent;
-    color: var(--primary-accent);
-    border-color: var(--primary-accent);
+    color: #dc3545; /* Standard red for delete */
+    border-color: #dc3545;
 }
 #delete-book-btn:hover {
-    background-color: rgba(216, 140, 154, 0.1); /* Light pink hover */
+    background-color: rgba(220, 53, 69, 0.1); /* Light red hover */
+    color: #a71d2a; /* Darker red text */
+    border-color: #b02a37;
 }
 
 /* Hide status change button for the current status */
@@ -315,16 +406,16 @@ body {
     display: none;
 }
 
-/* AI Recommendation Item Styling */
+/* AI Recommendation Item Styling - Ensure consistency */
 .ai-recommendation-item {
     display: flex;
     align-items: flex-start;
     gap: 1rem;
-    padding: 0.8rem;
-    margin-bottom: 0.8rem;
-    border: 1px solid #eee;
-    border-radius: 4px;
-    background-color: #f9f9f9; /* Slightly different background */
+    padding: 1rem; /* Consistent padding */
+    margin-bottom: 1rem;
+    border: 1px solid var(--border-color); /* Use standard border */
+    border-radius: 8px; /* Match card radius */
+    background-color: var(--card-bg); /* Use standard card background */
 }
 
 .ai-recommendation-item img {
@@ -332,12 +423,14 @@ body {
     height: auto;
     flex-shrink: 0; /* Prevent shrinking */
     border: 1px solid var(--border-color);
+    border-radius: 4px; /* Slight radius */
 }
 
 .ai-recommendation-item p {
-    font-size: 0.9em;
-    margin-top: 0.3rem;
-    color: #555;
+    font-size: 0.9rem; /* Consistent font size */
+    margin-top: 0; /* Adjust margin */
+    color: #6c757d; /* Muted grey */
+    line-height: 1.5; /* Adjust line height */
 }
 
 
