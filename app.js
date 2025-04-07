@@ -222,6 +222,9 @@ function switchView(newView) {
     // Clear current list/content
     bookListContainer.innerHTML = ''; // Clear previous content immediately
 
+    // Add/Remove view-specific class for layout adjustments
+    bookListContainer.classList.toggle('recommendations-view-active', newView === 'recommendations');
+
     // Load and render content for the new view
     if (currentView === 'insights') {
         renderInsights(); // Call the insights rendering function
@@ -992,17 +995,17 @@ async function renderRecommendations() {
     uiContainer.id = 'recommendation-ui';
     uiContainer.classList.add('recommendation-controls'); // Add class for styling
 
-    // --- Genre Section ---
+    // --- Genre Section (Now a Dropdown) ---
     const genreSection = document.createElement('div');
     genreSection.classList.add('rec-section'); // Class for styling
     const genreLabel = document.createElement('h3'); // Use heading
     genreLabel.textContent = 'Recommend based on Genre:';
-    const genreButtonsContainer = document.createElement('div');
-    genreButtonsContainer.id = 'rec-genre-buttons'; // Container for buttons
-    genreButtonsContainer.classList.add('rec-button-group'); // Class for styling
+    const genreSelect = document.createElement('select'); // Use SELECT element
+    genreSelect.id = 'rec-genre-select'; // ID for the dropdown
+    genreSelect.classList.add('genre-select'); // Class for styling
 
     genreSection.appendChild(genreLabel);
-    genreSection.appendChild(genreButtonsContainer);
+    genreSection.appendChild(genreSelect); // Append select instead of button container
 
     // --- Book Section ---
     const bookSection = document.createElement('div');
@@ -1016,43 +1019,38 @@ async function renderRecommendations() {
     bookSection.appendChild(bookLabel);
     bookSection.appendChild(bookCoversContainer);
 
-    // --- Results Area ---
-    const resultsContainer = document.createElement('div');
-    resultsContainer.id = 'ai-recommendation-results';
-    resultsContainer.style.marginTop = '1rem';
-
     // --- Reroll Button Area (Initially Hidden) ---
     const rerollContainer = document.createElement('div');
     rerollContainer.id = 'ai-reroll-container';
-    rerollContainer.style.marginTop = '1rem';
-    rerollContainer.style.textAlign = 'center'; // Center the button
+    // Removed inline styles, will use CSS
     rerollContainer.style.display = 'none'; // Hide initially
 
     const rerollButton = document.createElement('button');
     rerollButton.id = 'reroll-recs-btn';
     rerollButton.classList.add('button', 'button-primary'); // Add classes for styling
     rerollButton.textContent = 'Reroll Recommendations';
-    // Removed inline styles, will use CSS
     rerollContainer.appendChild(rerollButton);
 
-    // Append sections to main container
+    // Append sections and reroll button directly to uiContainer (vertical stack)
     uiContainer.appendChild(genreSection);
     uiContainer.appendChild(bookSection);
+    uiContainer.appendChild(rerollContainer);
 
-    // Append sections to main container
-    uiContainer.appendChild(genreSection);
-    uiContainer.appendChild(bookSection);
-    uiContainer.appendChild(rerollContainer); // Move reroll button container here
+    // --- Results Area (Separate from controls) ---
+    const resultsContainer = document.createElement('div');
+    resultsContainer.id = 'ai-recommendation-results';
+    // Removed inline style marginTop, will use CSS
 
-    bookListContainer.appendChild(uiContainer); // Add controls container
-    bookListContainer.appendChild(resultsContainer); // Add results container
+    // Append uiContainer (controls) and resultsContainer to the main bookListContainer
+    bookListContainer.appendChild(uiContainer);
+    bookListContainer.appendChild(resultsContainer);
 
 
     // --- Populate Selection Areas ---
     try {
         const readBooks = await getBooksByStatus('read'); // Fetch read books
 
-        // Populate Genre Buttons
+        // Populate Genre Dropdown
         const predefinedGenres = [
             'thriller', 'mystery', 'historical fiction', 'horror', 'memoir',
             'biography', 'self-help', 'business', 'travel', 'cookbooks',
@@ -1067,18 +1065,25 @@ async function renderRecommendations() {
         // Combine predefined and user genres, ensuring uniqueness and sorting
         const allGenres = [...new Set([...predefinedGenres, ...userGenres])].sort();
 
+        // Add default option
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = '-- Select Genre --';
+        defaultOption.disabled = true;
+        defaultOption.selected = true;
+        genreSelect.appendChild(defaultOption);
 
         if (allGenres.length === 0) {
-            // This case is less likely now with predefined genres, but keep as fallback
-            genreButtonsContainer.innerHTML = '<p>No genres available for recommendations.</p>';
+            // Disable dropdown if no genres
+            genreSelect.disabled = true;
+            defaultOption.textContent = '-- No Genres Available --';
         } else {
             allGenres.forEach(genre => {
-                const button = document.createElement('button');
-                button.classList.add('genre-select-btn', 'button'); // Add classes
-                button.dataset.genre = genre;
+                const option = document.createElement('option');
+                option.value = genre;
                 // Capitalize first letter for display
-                button.textContent = genre.charAt(0).toUpperCase() + genre.slice(1);
-                genreButtonsContainer.appendChild(button);
+                option.textContent = genre.charAt(0).toUpperCase() + genre.slice(1);
+                genreSelect.appendChild(option);
             });
         }
 
@@ -1117,27 +1122,20 @@ async function renderRecommendations() {
         bookCoversContainer.innerHTML = '<p>Error loading books.</p>';
     }
 
-    // --- Add Event Listeners using Delegation ---
+    // --- Add Event Listeners ---
 
-    // Listener for Genre Buttons
-    genreButtonsContainer.addEventListener('click', async (event) => {
-        if (event.target.classList.contains('genre-select-btn')) {
-            const selectedButton = event.target;
-            const selectedGenre = selectedButton.dataset.genre;
-
-            // Toggle active state for genre buttons
-            genreButtonsContainer.querySelectorAll('.genre-select-btn').forEach(btn => btn.classList.remove('active'));
-            selectedButton.classList.add('active');
-
+    // Listener for Genre Dropdown Change
+    genreSelect.addEventListener('change', async (event) => {
+        const selectedGenre = event.target.value;
+        if (selectedGenre) {
             // Remove active state from book covers
             bookCoversContainer.querySelectorAll('.book-cover-select').forEach(cover => cover.classList.remove('active'));
-
             // Trigger recommendation
             triggerAiRecommendation(selectedGenre, null, resultsContainer, rerollContainer);
         }
     });
 
-    // Listener for Book Covers
+    // Listener for Book Covers (using delegation)
     bookCoversContainer.addEventListener('click', async (event) => {
         const selectedCover = event.target.closest('.book-cover-select');
         if (selectedCover) {
@@ -1147,8 +1145,8 @@ async function renderRecommendations() {
             bookCoversContainer.querySelectorAll('.book-cover-select').forEach(cover => cover.classList.remove('active'));
             selectedCover.classList.add('active');
 
-            // Remove active state from genre buttons
-            genreButtonsContainer.querySelectorAll('.genre-select-btn').forEach(btn => btn.classList.remove('active'));
+            // Reset genre dropdown to default
+            genreSelect.value = '';
 
             // Fetch book details and trigger recommendation
             try {
@@ -1250,6 +1248,11 @@ async function triggerAiRecommendation(genre, book, resultsContainer, rerollCont
             recommendationHeader.style.marginBottom = '0.5rem';
             resultsContainer.appendChild(recommendationHeader);
 
+            // Create the grid container for the cards
+            const cardsGrid = document.createElement('div');
+            cardsGrid.classList.add('recommendation-cards-grid');
+            resultsContainer.appendChild(cardsGrid); // Append grid to results container
+
             recommendations.forEach(rec => {
                 displayedTitles.push(rec.title); // Add title for reroll exclusion
 
@@ -1291,7 +1294,8 @@ async function triggerAiRecommendation(genre, book, resultsContainer, rerollCont
                     ${infoHtml}
                 `;
 
-                resultsContainer.appendChild(recElement);
+                // Append the card to the grid container, not the main results container
+                cardsGrid.appendChild(recElement);
 
                 // Handle image loading errors for fetched covers
                 if (safeCoverUrl) {

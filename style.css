@@ -146,7 +146,14 @@ body {
 #book-list-container {
     display: grid;
     gap: 1.5rem; /* Increased gap between cards */
-    grid-template-columns: repeat(4, 1fr); /* Changed to 4 columns */
+    grid-template-columns: repeat(4, 1fr); /* Default grid for book lists */
+}
+
+/* Specific layout for Recommendations view */
+#book-list-container.recommendations-view-active {
+    display: flex; /* Use flexbox for two columns */
+    gap: 1.5rem; /* Gap between controls and results */
+    align-items: flex-start; /* Align tops */
 }
 
 /* Book Item Styling */
@@ -457,11 +464,15 @@ body {
 
 /* --- Recommendation Results Styling --- */
 #ai-recommendation-results {
+    flex-grow: 1; /* Allow results to take remaining width */
+    /* Removed margin-top, margin-left, margin-right */
+}
+
+/* Grid Container for Recommendation Cards */
+.recommendation-cards-grid {
     display: grid;
-    grid-template-columns: 1fr; /* Single column layout */
-    gap: 1.5rem; /* Gap between items */
-    margin-top: 1.5rem; /* Space above results */
-    /* Removed max-width and centering margins to allow full expansion */
+    grid-template-columns: repeat(2, 1fr); /* Two equal columns */
+    gap: 1.5rem; /* Gap between cards */
 }
 
 /* Individual Recommendation Item */
@@ -561,6 +572,12 @@ body {
 }
 
 /* --- Recommendation Controls Styling --- */
+#recommendation-ui { /* The container for the left column controls */
+    flex: 0 0 300px; /* Fixed width for controls column */
+    /* Removed class .recommendation-controls, using ID directly */
+}
+
+/* Removed .rec-controls-row styles */
 
 /* General Button Styling */
 .button {
@@ -600,7 +617,7 @@ body {
 }
 
 /* Recommendation UI Specifics */
-.recommendation-controls h3 {
+#recommendation-ui h3 { /* Target h3 within the controls container */
     font-size: 1.1rem;
     margin-bottom: 0.75rem;
     color: var(--text-color);
@@ -608,24 +625,42 @@ body {
 }
 
 .rec-section {
-    margin-bottom: 1.5rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid var(--border-color);
+    /* Removed flex, min-width */
+    margin-bottom: 1.5rem; /* Restore vertical spacing */
+    padding-bottom: 1rem; /* Restore vertical spacing */
+    border-bottom: 1px solid var(--border-color); /* Restore separator */
 }
 .rec-section:last-of-type {
-    border-bottom: none;
-    margin-bottom: 0; /* Remove margin for last section before results */
+     border-bottom: none; /* No border after the last section */
+     margin-bottom: 0;
+     padding-bottom: 0;
 }
 
-.rec-button-group {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
+/* Removed .rec-button-group styles */
+
+/* Style for the new Genre Select Dropdown */
+.genre-select {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 1rem;
+    background-color: #fff;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
+}
+.genre-select:focus {
+    outline: none;
+    border-color: var(--primary-accent);
+    box-shadow: 0 0 0 2px rgba(0, 128, 128, 0.25);
+}
+.genre-select:disabled {
+    background-color: var(--secondary-accent);
+    cursor: not-allowed;
 }
 
-.genre-select-btn {
-    /* Inherits .button styles */
-}
+
+/* Removed .genre-select-btn styles */
 
 .rec-cover-grid {
     display: grid;
@@ -705,14 +740,45 @@ body {
 }
 
 
+#ai-reroll-container {
+    /* Removed margin-left, align-self, flex-shrink */
+    margin-top: 1rem; /* Add space above reroll button in vertical stack */
+    text-align: center; /* Center the button */
+}
+
 #reroll-recs-btn {
     /* Inherits .button and .button-primary */
-    margin-top: 1rem; /* Ensure space above */
+    /* No specific changes needed */
 }
 
 
 /* Responsiveness */
-/* Removed media queries specifically targeting #ai-recommendation-results grid columns */
+
+/* Adjust two-column layout for smaller screens */
+@media (max-width: 900px) { /* Adjust breakpoint as needed */
+     #book-list-container.recommendations-view-active {
+        flex-direction: column; /* Stack columns vertically */
+        gap: 1rem;
+    }
+     #recommendation-ui {
+        flex-basis: auto; /* Reset fixed width */
+        width: 100%; /* Make controls full width */
+        border-bottom: 1px solid var(--border-color); /* Add separator */
+        padding-bottom: 1rem; /* Add padding below controls */
+        margin-bottom: 1rem; /* Add margin below controls */
+    }
+     #ai-recommendation-results {
+         /* No changes needed, will naturally take full width */
+     }
+     /* Optional: Adjust card grid for stacked layout */
+     .recommendation-cards-grid {
+         grid-template-columns: 1fr; /* Single column for cards on smaller screens */
+     }
+}
+
+
+/* Removed media query for .rec-controls-row */
+
 
 @media (max-width: 600px) {
     #app-header h1 {
